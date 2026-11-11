@@ -1,0 +1,40 @@
+{
+  "items": [
+    {
+      "scanId": "scan-url-001",
+      "module": "url",
+      "status": "completed",
+      "targetSummary": "https://example.com/login",
+      "assessment": {
+        "label": "Low",
+        "riskLevel": "low"
+      },
+      "createdAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "scanId": "scan-priv-001",
+      "module": "privacy",
+      "status": "completed",
+      "targetSummary": "Profiles: Jane.Doe on GitHub, jane_doe on X",
+      "assessment": {
+        "label": "2 exposure signals found",
+        "riskLevel": "medium"
+      },
+      "createdAt": "2026-11-11T12:15:00.000Z"
+    },
+    {
+      "scanId": "scan-site-001",
+      "module": "website",
+      "status": "completed",
+      "targetSummary": "https://example.com",
+      "assessment": {
+        "label": "Low risk",
+        "riskLevel": "low"
+      },
+      "createdAt": "2026-11-11T12:30:00.000Z"
+    }
+  ],
+  "page": 1,
+  "limit": 10,
+  "total": 3
+}

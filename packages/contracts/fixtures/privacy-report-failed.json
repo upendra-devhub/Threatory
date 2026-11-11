@@ -1,0 +1,17 @@
+{
+  "scanId": "scan-priv-003",
+  "module": "privacy",
+  "status": "failed",
+  "rulesVersion": "privacy-1.0.0",
+  "targetSummary": "Profiles: invalid_payload",
+  "assessment": {
+    "label": "No exposure patterns detected",
+    "riskLevel": "none_detected"
+  },
+  "findings": [],
+  "limitations": ["Scan execution failed due to unparseable payload structure"],
+  "details": {
+    "failureReason": "Payload encoding violation"
+  },
+  "createdAt": "2026-11-11T12:25:00.000Z"
+}

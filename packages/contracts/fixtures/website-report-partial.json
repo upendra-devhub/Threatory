@@ -1,0 +1,40 @@
+{
+  "scanId": "scan-site-002",
+  "module": "website",
+  "status": "partial",
+  "rulesVersion": "website-1.0.0",
+  "targetSummary": "https://degraded-site.example.org",
+  "assessment": {
+    "label": "Medium risk",
+    "riskLevel": "medium"
+  },
+  "findings": [
+    {
+      "code": "SITE_HEADER_CSP",
+      "category": "headers",
+      "title": "Content Security Policy",
+      "outcome": "warn",
+      "severity": "medium",
+      "evidence": "Content-Security-Policy header is missing",
+      "explanation": "Missing CSP increases exposure to content injection and XSS",
+      "recommendation": "Configure a strict Content-Security-Policy header"
+    },
+    {
+      "code": "SITE_DMARC",
+      "category": "dns",
+      "title": "DMARC authentication record",
+      "outcome": "not_assessed",
+      "severity": "info",
+      "evidence": "DNS nameserver lookup timed out",
+      "explanation": "DMARC resolution could not be queried"
+    }
+  ],
+  "limitations": [
+    "DNS resolution server encountered high packet loss",
+    "Email security verification incomplete"
+  ],
+  "details": {
+    "partialReason": "Upstream nameserver query timeout"
+  },
+  "createdAt": "2026-11-11T12:35:00.000Z"
+}

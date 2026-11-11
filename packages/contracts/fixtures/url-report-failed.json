@@ -1,0 +1,17 @@
+{
+  "scanId": "scan-url-003",
+  "module": "url",
+  "status": "failed",
+  "rulesVersion": "url-1.0.0",
+  "targetSummary": "https://unreachable-endpoint.invalid",
+  "assessment": {
+    "label": "None detected",
+    "riskLevel": "none_detected"
+  },
+  "findings": [],
+  "limitations": ["Scan could not complete due to target resolution error"],
+  "details": {
+    "failureReason": "Unable to normalize target URL"
+  },
+  "createdAt": "2026-11-11T12:10:00.000Z"
+}

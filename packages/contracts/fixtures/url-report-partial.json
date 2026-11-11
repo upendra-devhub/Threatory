@@ -1,0 +1,49 @@
+{
+  "scanId": "scan-url-002",
+  "module": "url",
+  "status": "partial",
+  "rulesVersion": "url-1.0.0",
+  "targetSummary": "https://suspicious-target.xyz/login",
+  "assessment": {
+    "label": "High",
+    "riskLevel": "high",
+    "score": 75,
+    "scoreMeaning": "High risk indicators detected"
+  },
+  "findings": [
+    {
+      "code": "URL_ABUSED_TLD",
+      "category": "host",
+      "title": "Suspicious Top-Level Domain",
+      "outcome": "warn",
+      "severity": "low",
+      "evidence": "TLD .xyz",
+      "explanation": "TLD associated with elevated spam and phishing",
+      "recommendation": "Treat links from unfamiliar TLDs with caution"
+    },
+    {
+      "code": "URL_FEED_MATCH",
+      "category": "reputation",
+      "title": "Threat Feed Match",
+      "outcome": "fail",
+      "severity": "high",
+      "evidence": "Host listed in threat intel feed",
+      "explanation": "Target host is present on active threat lists",
+      "recommendation": "Block navigation and report malicious indicator"
+    },
+    {
+      "code": "URL_IP_HOST",
+      "category": "host",
+      "title": "IP host literal check",
+      "outcome": "not_assessed",
+      "severity": "info",
+      "evidence": "Feed lookup aborted subsequent checks",
+      "explanation": "Rule evaluation was skipped"
+    }
+  ],
+  "limitations": ["External feed query timed out partially", "Heuristic assessment incomplete"],
+  "details": {
+    "partialReason": "Upstream threat feed timed out"
+  },
+  "createdAt": "2026-11-11T12:05:00.000Z"
+}

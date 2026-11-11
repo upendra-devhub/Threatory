@@ -1,0 +1,7 @@
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Report with the specified ID was not found or has expired"
+  }
+}

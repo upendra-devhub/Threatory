@@ -1,0 +1,17 @@
+{
+  "scanId": "scan-site-003",
+  "module": "website",
+  "status": "failed",
+  "rulesVersion": "website-1.0.0",
+  "targetSummary": "https://unreachable-host.invalid",
+  "assessment": {
+    "label": "None detected",
+    "riskLevel": "none_detected"
+  },
+  "findings": [],
+  "limitations": ["Unable to establish TCP handshake with remote target"],
+  "details": {
+    "failureReason": "Connection reset by peer"
+  },
+  "createdAt": "2026-11-11T12:40:00.000Z"
+}

@@ -1,0 +1,40 @@
+{
+  "scanId": "scan-priv-002",
+  "module": "privacy",
+  "status": "partial",
+  "rulesVersion": "privacy-1.0.0",
+  "targetSummary": "Profiles: alpha_dev on GitHub",
+  "assessment": {
+    "label": "1 exposure signal found",
+    "riskLevel": "low"
+  },
+  "findings": [
+    {
+      "code": "PRIV_URL_USERNAME_MISMATCH",
+      "category": "username",
+      "title": "URL username differs from supplied handle",
+      "outcome": "warn",
+      "severity": "low",
+      "evidence": "Supplied handle differs from platform link path",
+      "explanation": "Discrepancy may cause routing or identity misattribution",
+      "recommendation": "Confirm profile URL corresponds directly to user handle"
+    },
+    {
+      "code": "PRIV_PHONE_FOUND",
+      "category": "contact",
+      "title": "Phone number detection",
+      "outcome": "not_assessed",
+      "severity": "info",
+      "evidence": "Phone regex engine timed out on large block",
+      "explanation": "Rule execution skipped due to resource constraints"
+    }
+  ],
+  "limitations": [
+    "Deep text scan was truncated due to buffer ceiling",
+    "Secondary phone parser was not evaluated"
+  ],
+  "details": {
+    "partialReason": "Text block exceeded soft scan threshold"
+  },
+  "createdAt": "2026-11-11T12:20:00.000Z"
+}

@@ -1,0 +1,60 @@
+{
+  "scanId": "scan-site-001",
+  "module": "website",
+  "status": "completed",
+  "rulesVersion": "website-1.0.0",
+  "targetSummary": "https://example.com",
+  "assessment": {
+    "label": "Low risk",
+    "riskLevel": "low"
+  },
+  "findings": [
+    {
+      "code": "SITE_TLS_CERT_VALID",
+      "category": "tls",
+      "title": "TLS certificate validity",
+      "outcome": "pass",
+      "severity": "info",
+      "evidence": "Valid certificate issued by trusted CA, expires in 85 days",
+      "explanation": "Active TLS certificate is properly chained and unexpired"
+    },
+    {
+      "code": "SITE_HEADER_HSTS",
+      "category": "headers",
+      "title": "HTTP Strict Transport Security header",
+      "outcome": "warn",
+      "severity": "low",
+      "evidence": "Strict-Transport-Security header is absent in response",
+      "explanation": "Without HSTS, initial connections may be susceptible to downgrade attacks",
+      "recommendation": "Deploy Strict-Transport-Security header with appropriate max-age"
+    },
+    {
+      "code": "SITE_COOKIE_SECURE",
+      "category": "cookies",
+      "title": "Cookie Secure attribute enforcement",
+      "outcome": "pass",
+      "severity": "info",
+      "evidence": "All set cookies carry Secure attribute",
+      "explanation": "Browser cookies are restricted to HTTPS transmission only"
+    },
+    {
+      "code": "SITE_SPF",
+      "category": "dns",
+      "title": "Sender Policy Framework record",
+      "outcome": "pass",
+      "severity": "info",
+      "evidence": "v=spf1 include:_spf.example.com -all",
+      "explanation": "SPF record designates legitimate sending hosts"
+    }
+  ],
+  "limitations": [
+    "Audits single landing page headers and public DNS only",
+    "Does not spider internal authenticated endpoints"
+  ],
+  "details": {
+    "finalUrl": "https://example.com/",
+    "statusCode": 200,
+    "ipAddress": "93.184.216.34"
+  },
+  "createdAt": "2026-11-11T12:30:00.000Z"
+}

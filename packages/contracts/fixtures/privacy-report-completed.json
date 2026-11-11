@@ -1,0 +1,51 @@
+{
+  "scanId": "scan-priv-001",
+  "module": "privacy",
+  "status": "completed",
+  "rulesVersion": "privacy-1.0.0",
+  "targetSummary": "Profiles: Jane.Doe on GitHub, jane_doe on X",
+  "assessment": {
+    "label": "2 exposure signals found",
+    "riskLevel": "medium"
+  },
+  "findings": [
+    {
+      "code": "PRIV_USERNAME_REUSE",
+      "category": "username",
+      "title": "Cross-platform username reuse",
+      "outcome": "warn",
+      "severity": "medium",
+      "evidence": "Normalized username 'janedoe' reused across multiple profiles",
+      "explanation": "Reusing usernames across platforms allows automated correlational tracking",
+      "recommendation": "Use distinct pseudonyms across separate service tiers"
+    },
+    {
+      "code": "PRIV_EMAIL_FOUND",
+      "category": "contact",
+      "title": "Email address exposed in text",
+      "outcome": "warn",
+      "severity": "low",
+      "evidence": "Email detected: j***@example.com",
+      "explanation": "Cleartext email address present in submitted public content",
+      "recommendation": "Remove or redact direct email addresses in publicly accessible bios"
+    },
+    {
+      "code": "PRIV_SECRET_FOUND",
+      "category": "contact",
+      "title": "Credential or API secret detection",
+      "outcome": "pass",
+      "severity": "info",
+      "evidence": "No high-entropy API keys detected",
+      "explanation": "No known credential pattern matches found"
+    }
+  ],
+  "limitations": [
+    "Checks only user-submitted text and metadata",
+    "Does not correlate off-platform identity graphs"
+  ],
+  "details": {
+    "profilesCount": 2,
+    "hasSubmittedText": true
+  },
+  "createdAt": "2026-11-11T12:15:00.000Z"
+}

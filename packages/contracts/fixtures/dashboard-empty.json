@@ -1,0 +1,15 @@
+{
+  "totalScans": 0,
+  "byModule": {
+    "url": 0,
+    "privacy": 0,
+    "website": 0
+  },
+  "byRiskLevel": {
+    "none_detected": 0,
+    "low": 0,
+    "medium": 0,
+    "high": 0
+  },
+  "recent": []
+}

@@ -1,0 +1,40 @@
+{
+  "scanId": "scan-url-001",
+  "module": "url",
+  "status": "completed",
+  "rulesVersion": "url-1.0.0",
+  "targetSummary": "https://example.com/login",
+  "assessment": {
+    "label": "Low",
+    "riskLevel": "low",
+    "score": 15,
+    "scoreMeaning": "Low risk indicators detected"
+  },
+  "findings": [
+    {
+      "code": "URL_KEYWORDS",
+      "category": "host",
+      "title": "Sensitive keyword in URL",
+      "outcome": "warn",
+      "severity": "low",
+      "evidence": "Path contains 'login'",
+      "explanation": "Keyword login is commonly targeted by phishing campaigns",
+      "recommendation": "Verify domain authenticity before entering credentials"
+    },
+    {
+      "code": "URL_NO_HTTPS",
+      "category": "host",
+      "title": "HTTPS enforcement",
+      "outcome": "pass",
+      "severity": "info",
+      "evidence": "HTTPS protocol is used",
+      "explanation": "Transport encryption is present"
+    }
+  ],
+  "limitations": ["Does not inspect page content", "Does not execute client-side scripts"],
+  "details": {
+    "normalizedHost": "example.com",
+    "scheme": "https"
+  },
+  "createdAt": "2026-11-11T12:00:00.000Z"
+}
