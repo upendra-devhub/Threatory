@@ -1,9 +1,9 @@
 # HANDOFF
 
 ## Baton
-Current owner: Person A            Updated: 2026-11-11 15:34 UTC+5:30
+Current owner: Person A            Updated: 2026-11-11 15:38 UTC+5:30
 Status: READY
-Last completed: CP-01 (branch cp-01-repo-contract)
+Last completed: cp-01-done (commit e600788)
 Current checkpoint: none, next is CP-02 on branch cp-02-backend-foundation
 
 ## Exact next step
@@ -21,7 +21,7 @@ Lint: `npm run lint` | Typecheck: `npm run typecheck` | Test: `npm run test` | B
 | CP-01 | Person A | 2026-11-11 | cp-01-done | Monorepo workspaces, contracts, fixtures, golden-inputs, Vitest tests, GitHub Actions CI |
 
 ## Decisions
-1. Used ESLint 9 flat config (`eslint.config.mjs`) with `typescript-eslint` v8 for type-aware linting.
+1. Used ESLint 9 flat config (`eslint.config.mjs`) with `typescript-eslint` v8 for type-aware linting across all monorepo workspaces.
 2. In `packages/contracts`, used `superRefine` on `Finding` to enforce requirement that `recommendation` is required when `outcome` is `"warn"` or `"fail"` per Rule 46 and Appendix A.
 3. Created placeholder workspace manifests and tests for `backend`, `frontend`, and `e2e` so that monorepo verification commands (`lint`, `typecheck`, `test`, `build`) pass cleanly without implementing CP-02+ feature logic.
 
