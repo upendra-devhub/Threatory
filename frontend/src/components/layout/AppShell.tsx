@@ -6,6 +6,7 @@ import { Menu, ShieldCheck, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ApiStatusIndicator } from "./ApiStatusIndicator";
 import { isNavItemActive, PRIMARY_NAV_ITEMS } from "./navigation";
 
 export interface AppShellProps {
@@ -66,6 +67,8 @@ function NavList({ pathname, onNavigate }: NavListProps) {
 }
 
 export function AppShell({ children, statusIndicator }: AppShellProps) {
+  const resolvedStatusIndicator =
+    statusIndicator === undefined ? <ApiStatusIndicator /> : statusIndicator;
   const pathname = usePathname() ?? "/";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const toggleButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -113,22 +116,25 @@ export function AppShell({ children, statusIndicator }: AppShellProps) {
         <nav aria-label="Primary navigation" className="flex-1 overflow-y-auto px-3 py-4">
           <NavList pathname={pathname} />
         </nav>
-        {statusIndicator ? (
-          <div className="border-t border-border px-4 py-3">{statusIndicator}</div>
-        ) : null}
       </aside>
 
-      {/* Mobile and tablet top bar */}
-      <header className="sticky top-0 z-30 border-b border-border bg-card lg:hidden">
-        <div className="flex h-14 items-center justify-between gap-3 px-4">
-          <BrandMark />
+      {/* Shared top header (mobile brand + menu toggle; single API status indicator across viewports) */}
+      <header className="sticky top-0 z-30 border-b border-border bg-card lg:pl-64">
+        <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+          <div className="lg:hidden">
+            <BrandMark />
+          </div>
+          <p className="hidden text-xs font-medium text-muted-foreground lg:block">
+            Deterministic security &amp; privacy analysis
+          </p>
           <div className="flex items-center gap-2">
-            {statusIndicator ? <div className="hidden sm:block">{statusIndicator}</div> : null}
+            {resolvedStatusIndicator}
             <Button
               ref={toggleButtonRef}
               type="button"
               variant="outline"
               size="icon"
+              className="lg:hidden"
               aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-navigation"
@@ -144,16 +150,10 @@ export function AppShell({ children, statusIndicator }: AppShellProps) {
         </div>
 
         {mobileMenuOpen ? (
-          <div
-            id="mobile-navigation"
-            className="border-t border-border bg-card px-4 py-3"
-          >
+          <div id="mobile-navigation" className="border-t border-border bg-card px-4 py-3 lg:hidden">
             <nav aria-label="Mobile navigation">
               <NavList pathname={pathname} onNavigate={closeMobileMenu} />
             </nav>
-            {statusIndicator ? (
-              <div className="mt-3 border-t border-border pt-3 sm:hidden">{statusIndicator}</div>
-            ) : null}
           </div>
         ) : null}
       </header>
