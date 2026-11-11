@@ -1,0 +1,11 @@
+export default function PrivacyAnalyzerPage() {
+  return (
+    <main className="mx-auto max-w-4xl p-6">
+      <h1 className="text-2xl font-semibold">Privacy Analyzer</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Privacy exposure analysis workflow will be implemented in a later checkpoint.
+      </p>
+    </main>
+  );
+}
+
