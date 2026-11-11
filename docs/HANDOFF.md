@@ -1,7 +1,7 @@
 # HANDOFF
 
 ## Baton
-Current owner: Person A            Updated: 2026-11-11 15:38 UTC+5:30
+Current owner: Person B            Updated: 2026-11-11 15:38 UTC+5:30
 Status: READY
 Last completed: cp-01-done (commit e600788)
 Current checkpoint: none, next is CP-02 on branch cp-02-backend-foundation
