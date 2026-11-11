@@ -1,3 +1,3 @@
-// Threatory backend entry point placeholder (CP-01)
-// Implementation begins in CP-02
-export const BACKEND_VERSION = "0.1.0";
+export const BACKEND_VERSION = "1.0.0";
+export * from "./app.js";
+export * from "./config/env.js";
