@@ -1,11 +1,21 @@
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 export default function PrivacyAnalyzerPage() {
   return (
-    <main className="mx-auto max-w-4xl p-6">
-      <h1 className="text-2xl font-semibold">Privacy Analyzer</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Privacy exposure analysis workflow will be implemented in a later checkpoint.
-      </p>
-    </main>
+    <div className="space-y-6">
+      <PageHeader
+        title="Privacy Analyzer"
+        description="Reviews user-supplied usernames and text with explicit consent and masks detected values."
+      />
+      <Card>
+        <CardHeader>
+          <CardTitle>Privacy exposure workflow</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          The privacy input form and masking analyzer will be implemented in a later checkpoint.
+        </CardContent>
+      </Card>
+    </div>
   );
 }
-

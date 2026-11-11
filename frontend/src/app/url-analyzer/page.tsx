@@ -1,11 +1,21 @@
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 export default function UrlAnalyzerPage() {
   return (
-    <main className="mx-auto max-w-4xl p-6">
-      <h1 className="text-2xl font-semibold">URL Analyzer</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        URL analysis workflow will be implemented in a later checkpoint.
-      </p>
-    </main>
+    <div className="space-y-6">
+      <PageHeader
+        title="URL Analyzer"
+        description="Inspects a link structurally without visiting, fetching, or resolving the target."
+      />
+      <Card>
+        <CardHeader>
+          <CardTitle>URL analysis workflow</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          The URL submission form and rule engine will be implemented in a later checkpoint.
+        </CardContent>
+      </Card>
+    </div>
   );
 }
-

@@ -1,11 +1,28 @@
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-4xl p-6">
-      <h1 className="text-2xl font-semibold">Threatory Overview</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Dashboard summary will be implemented in a later checkpoint.
-      </p>
-    </main>
+    <div className="space-y-6">
+      <PageHeader
+        title="Overview"
+        description="Deterministic, evidence-backed checks for suspicious URLs, personal privacy exposure, and website security configuration."
+      />
+      <Card>
+        <CardHeader>
+          <CardTitle>Platform dashboard</CardTitle>
+          <CardDescription>
+            Summary statistics and recent scan activity will appear here in a later checkpoint.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          Use the navigation menu to browse the analyzer modules or open a saved report directly at{" "}
+          <code className="rounded bg-secondary px-1.5 py-0.5 text-xs text-foreground">
+            /reports/&lt;scanId&gt;
+          </code>
+          .
+        </CardContent>
+      </Card>
+    </div>
   );
 }
-
