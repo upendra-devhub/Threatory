@@ -1,10 +1,10 @@
 # HANDOFF
 
 ## Baton
-Current owner: Person A            Updated: 2026-11-11 18:35 UTC+5:30
-Status: READY_FOR_GATE
-Last completed: CP-02 (commit e7e42a5)
-Current checkpoint: CP-02 completed; next is CP-03 on branch cp-03-url-core-rules
+Current owner: Person A
+Status: READY
+Last completed: cp-02-done
+Current checkpoint: none, next is CP-03
 
 ## Exact next step
 Human to run Docker-dependent exit gate checks (`docker compose up -d`, `npm run seed -w backend`, verify `GET /api/health` and `GET /api/scans/:scanId`), tag `cp-02-done`, and branch `cp-03-url-core-rules` for CP-03.
