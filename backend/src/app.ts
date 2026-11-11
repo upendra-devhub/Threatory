@@ -4,6 +4,7 @@ import cors from "cors";
 import { getEnv } from "./config/env.js";
 import { httpLogger } from "./middleware/logger.js";
 import { generalLimiter, scanLimiter } from "./middleware/rateLimit.js";
+import { notFoundHandler, errorHandler } from "./middleware/errors.js";
 
 export function createApp(): Express {
   const env = getEnv();
@@ -42,6 +43,14 @@ export function createApp(): Express {
 
   // JSON body limit 20 kb
   app.use(express.json({ limit: "20kb" }));
+
+  // Routes will be registered here
+
+  // 404 handler for unknown routes
+  app.use(notFoundHandler);
+
+  // Central error handler
+  app.use(errorHandler);
 
   return app;
 }
