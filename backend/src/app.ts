@@ -1,10 +1,12 @@
 import express, { Express } from "express";
 import helmet from "helmet";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import { getEnv } from "./config/env.js";
 import { httpLogger } from "./middleware/logger.js";
 import { generalLimiter, scanLimiter } from "./middleware/rateLimit.js";
 import { notFoundHandler, errorHandler } from "./middleware/errors.js";
+import { ownerMiddleware } from "./middleware/owner.js";
 import { healthRouter } from "./routes/health.js";
 
 export function createApp(): Express {
@@ -44,6 +46,12 @@ export function createApp(): Express {
 
   // JSON body limit 20 kb
   app.use(express.json({ limit: "20kb" }));
+
+  // Cookie parser with secret
+  app.use(cookieParser(env.COOKIE_SECRET));
+
+  // Anonymous owner identification middleware
+  app.use(ownerMiddleware);
 
   // Routes
   app.use("/api/health", healthRouter);
