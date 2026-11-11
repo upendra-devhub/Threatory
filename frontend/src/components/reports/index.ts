@@ -8,6 +8,7 @@ export { OutcomeBadge } from "./OutcomeBadge";
 export { PartialBanner } from "./PartialBanner";
 export { ReportSkeleton } from "./ReportSkeleton";
 export { ReportView } from "./ReportView";
+export { SavedReportView } from "./SavedReportView";
 export { SeverityBadge } from "./SeverityBadge";
 export {
   formatDetailLabel,
