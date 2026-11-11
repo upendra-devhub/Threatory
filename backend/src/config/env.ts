@@ -41,5 +41,13 @@ export function validateEnv(source: NodeJS.ProcessEnv = process.env): Env {
 }
 
 export function getEnv(): Env {
+  if (process.env.NODE_ENV === "test") {
+    return validateEnv({
+      MONGODB_URI: "mongodb://localhost:27017/threatory_test",
+      FRONTEND_ORIGIN: "http://localhost:3000",
+      COOKIE_SECRET: "test_cookie_secret_at_least_32_characters_long",
+      ...process.env,
+    });
+  }
   return validateEnv(process.env);
 }
