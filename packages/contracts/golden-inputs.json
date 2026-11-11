@@ -1,0 +1,261 @@
+[
+  {
+    "id": "U1",
+    "module": "url",
+    "input": {
+      "url": "http://198.51.100.23/login"
+    },
+    "expected": {
+      "findings": [
+        { "code": "URL_IP_HOST", "outcome": "fail" },
+        { "code": "URL_NO_HTTPS", "outcome": "warn" },
+        { "code": "URL_KEYWORDS", "outcome": "warn" }
+      ],
+      "score": 50,
+      "riskLevel": "medium"
+    },
+    "description": "URL_IP_HOST fail, URL_NO_HTTPS warn, URL_KEYWORDS warn. Score 50, medium.",
+    "from": "CP-04"
+  },
+  {
+    "id": "U2",
+    "module": "url",
+    "input": {
+      "url": "https://example.com/"
+    },
+    "expected": {
+      "allPass": true,
+      "score": 0,
+      "riskLevel": "none_detected"
+    },
+    "description": "All findings pass. Score 0, none_detected.",
+    "from": "CP-04"
+  },
+  {
+    "id": "U3",
+    "module": "url",
+    "input": {
+      "url": "https://paypal.com@example.net/login"
+    },
+    "expected": {
+      "findings": [{ "code": "URL_USERINFO", "outcome": "fail" }]
+    },
+    "description": "URL_USERINFO fail.",
+    "from": "CP-04"
+  },
+  {
+    "id": "U4",
+    "module": "url",
+    "input": {
+      "url": "ftp://example.com"
+    },
+    "expected": {
+      "status": 400,
+      "errorCode": "VALIDATION_ERROR"
+    },
+    "description": "400 VALIDATION_ERROR (unsupported scheme).",
+    "from": "CP-04"
+  },
+  {
+    "id": "U5",
+    "module": "url",
+    "input": {
+      "url": "https://paypa1.com/login"
+    },
+    "expected": {
+      "findings": [{ "code": "URL_LOOKALIKE", "outcome": "fail" }]
+    },
+    "description": "URL_LOOKALIKE fail (paypal.com must be in the top list).",
+    "from": "CP-06"
+  },
+  {
+    "id": "U6",
+    "module": "url",
+    "input": {
+      "url": "https://xn--pple-43d.com/"
+    },
+    "expected": {
+      "findings": [{ "code": "URL_HOMOGRAPH", "outcome": "fail" }]
+    },
+    "description": "URL_HOMOGRAPH fail.",
+    "from": "CP-06"
+  },
+  {
+    "id": "U7",
+    "module": "url",
+    "input": {
+      "url": "https://bit.ly/abc123"
+    },
+    "expected": {
+      "findings": [{ "code": "URL_SHORTENER", "outcome": "warn" }]
+    },
+    "description": "URL_SHORTENER warn.",
+    "from": "CP-06"
+  },
+  {
+    "id": "U8",
+    "module": "url",
+    "input": {
+      "url": "https://paypal.com.account-verify.xyz/login"
+    },
+    "expected": {
+      "findings": [
+        { "code": "URL_BRAND_SUBDOMAIN", "outcome": "warn" },
+        { "code": "URL_ABUSED_TLD", "outcome": "warn" },
+        { "code": "URL_KEYWORDS", "outcome": "warn" }
+      ]
+    },
+    "description": "URL_BRAND_SUBDOMAIN, URL_ABUSED_TLD, URL_KEYWORDS warn.",
+    "from": "CP-06"
+  },
+  {
+    "id": "P1",
+    "module": "privacy",
+    "input": {
+      "profiles": [
+        {
+          "platform": "GitHub",
+          "username": "Jane.Doe",
+          "url": "https://github.com/jane-doe"
+        },
+        {
+          "platform": "X",
+          "username": "jane_doe"
+        }
+      ],
+      "submittedText": "Reach me at jane.doe@example.com or +1 213 373 4253",
+      "consent": true
+    },
+    "expected": {
+      "findings": [
+        { "code": "PRIV_USERNAME_REUSE", "outcome": "warn" },
+        { "code": "PRIV_EMAIL_FOUND", "outcome": "warn" },
+        { "code": "PRIV_PHONE_FOUND", "outcome": "warn" },
+        { "code": "PRIV_USERNAME_MATCHES_EMAIL", "outcome": "warn" }
+      ],
+      "masked": ["j***@example.com", "+1 213 *** 4253"]
+    },
+    "description": "PRIV_USERNAME_REUSE, PRIV_EMAIL_FOUND (masked), PRIV_PHONE_FOUND (masked), PRIV_USERNAME_MATCHES_EMAIL all warn. Raw email and phone absent from response, logs and database.",
+    "from": "CP-07"
+  },
+  {
+    "id": "P2",
+    "module": "privacy",
+    "input": {
+      "profiles": [
+        {
+          "platform": "GitHub",
+          "username": "alpha_dev"
+        },
+        {
+          "platform": "Reddit",
+          "username": "zeta42"
+        }
+      ],
+      "submittedText": "Just a normal sentence.",
+      "consent": true
+    },
+    "expected": {
+      "allPass": true,
+      "riskLevel": "none_detected"
+    },
+    "description": "All pass. none_detected.",
+    "from": "CP-07"
+  },
+  {
+    "id": "P3",
+    "module": "privacy",
+    "input": {
+      "profiles": [
+        {
+          "platform": "GitHub",
+          "username": "alpha_dev"
+        }
+      ],
+      "submittedText": "Text containing AKIAIOSFODNN7EXAMPLE and 4111 1111 1111 1111",
+      "consent": true
+    },
+    "expected": {
+      "findings": [
+        { "code": "PRIV_SECRET_FOUND", "outcome": "fail" },
+        { "code": "PRIV_CARD_FOUND", "outcome": "fail" }
+      ]
+    },
+    "description": "PRIV_SECRET_FOUND fail, PRIV_CARD_FOUND fail. Raw values absent everywhere.",
+    "from": "CP-07"
+  },
+  {
+    "id": "P4",
+    "module": "privacy",
+    "input": {
+      "profiles": [
+        {
+          "platform": "GitHub",
+          "username": "Jane.Doe",
+          "url": "https://github.com/jane-doe"
+        },
+        {
+          "platform": "X",
+          "username": "jane_doe"
+        }
+      ],
+      "submittedText": "Reach me at jane.doe@example.com or +1 213 373 4253",
+      "consent": false
+    },
+    "expected": {
+      "status": 400,
+      "errorCode": "VALIDATION_ERROR"
+    },
+    "description": "P1 with consent:false -> 400 VALIDATION_ERROR.",
+    "from": "CP-07"
+  },
+  {
+    "id": "W1",
+    "module": "website",
+    "input": {
+      "url": "http://127.0.0.1",
+      "authorised": true
+    },
+    "variants": [
+      "http://[::1]",
+      "http://2130706433",
+      "http://169.254.169.254/latest/meta-data",
+      "https://example.com:8443"
+    ],
+    "expected": {
+      "status": 422,
+      "errorCode": "TARGET_BLOCKED"
+    },
+    "description": "422 TARGET_BLOCKED. No outbound request made.",
+    "from": "CP-09"
+  },
+  {
+    "id": "W2",
+    "module": "website",
+    "input": {
+      "url": "file:///etc/passwd",
+      "authorised": true
+    },
+    "expected": {
+      "status": 400,
+      "errorCode": "VALIDATION_ERROR"
+    },
+    "description": "file:///etc/passwd; or any URL with authorised:false -> 400 VALIDATION_ERROR.",
+    "from": "CP-09"
+  },
+  {
+    "id": "W3",
+    "module": "website",
+    "input": {
+      "url": "https://example.com",
+      "authorised": true
+    },
+    "online": true,
+    "expected": {
+      "status": ["completed", "partial"],
+      "findings": [{ "code": "SITE_TLS_CERT_VALID", "outcome": "pass" }]
+    },
+    "description": "Status completed or partial. SITE_TLS_CERT_VALID pass. All four groups present.",
+    "from": "CP-09"
+  }
+]
