@@ -1,0 +1,14 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: threatory-mongodb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: threatory
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:
