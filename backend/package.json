@@ -23,6 +23,7 @@
     "mongoose": "^8.8.1",
     "pino": "^9.5.0",
     "pino-http": "^10.3.0",
+    "tldts": "^6.1.86",
     "zod": "^3.23.8"
   },
   "devDependencies": {
