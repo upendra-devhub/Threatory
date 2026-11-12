@@ -27,8 +27,9 @@ describe("POST /api/scans/url Endpoint", () => {
 
   it("analyses a valid URL, saves with 30-day expiresAt, and returns contract-valid report", async () => {
     const inputUrl = "http://198.51.100.23/login";
+    const client = request.agent(app);
 
-    const createRes = await request(app)
+    const createRes = await client
       .post("/api/scans/url")
       .send({ url: inputUrl })
       .expect(201);
@@ -60,8 +61,8 @@ describe("POST /api/scans/url Endpoint", () => {
     const diffDays = Math.round((expiresAtTime - createdAtTime) / (1000 * 60 * 60 * 24));
     expect(diffDays).toBe(30);
 
-    // GET /api/scans/<scanId> returns the identical report
-    const getRes = await request(app)
+    // GET /api/scans/<scanId> returns the identical report for the owner client
+    const getRes = await client
       .get(`/api/scans/${report.scanId}`)
       .expect(200);
 
@@ -71,13 +72,14 @@ describe("POST /api/scans/url Endpoint", () => {
 
   it("the same input twice returns identical findings", async () => {
     const url = "https://example.com/verify?account=test";
+    const client = request.agent(app);
 
-    const res1 = await request(app)
+    const res1 = await client
       .post("/api/scans/url")
       .send({ url })
       .expect(201);
 
-    const res2 = await request(app)
+    const res2 = await client
       .post("/api/scans/url")
       .send({ url })
       .expect(201);
