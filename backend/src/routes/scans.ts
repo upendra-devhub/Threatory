@@ -1,8 +1,47 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { AppError } from "../middleware/errors.js";
+import { UrlScanRequest } from "@threatory/contracts";
+import { AppError, validateWithZod } from "../middleware/errors.js";
 import { scanRepository } from "../repositories/scanRepository.js";
+import { analyseUrl } from "../modules/url/service.js";
 
 export const scansRouter = Router();
+
+// POST /api/scans/url
+scansRouter.post(
+  "/url",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const ownerId = req.ownerId;
+      if (!ownerId) {
+        throw new AppError("INTERNAL", "Missing owner identification");
+      }
+
+      const body = validateWithZod(UrlScanRequest, req.body);
+      const { report } = analyseUrl(body.url);
+
+      const savedReport = await scanRepository.create({
+        scanId: report.scanId,
+        ownerId,
+        module: "url",
+        status: report.status,
+        rulesVersion: report.rulesVersion,
+        targetSummary: report.targetSummary,
+        assessment: report.assessment,
+        findings: report.findings,
+        limitations: report.limitations,
+        details: report.details,
+        createdAt: report.createdAt,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: savedReport,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 // GET /api/scans/:scanId
 scansRouter.get(
