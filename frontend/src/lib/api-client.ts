@@ -1,4 +1,4 @@
-import { ApiError, ApiSuccess, Report, UrlScanRequest } from "@threatory/contracts";
+import { ApiError, ApiSuccess, PrivacyScanRequest, Report, UrlScanRequest } from "@threatory/contracts";
 import { z } from "zod";
 
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
@@ -89,6 +89,7 @@ export const queryKeys = {
   report: (scanId: string) => ["report", scanId] as const,
   health: () => ["api-health"] as const,
   urlScan: () => ["url-scan"] as const,
+  privacyScan: () => ["privacy-scan"] as const,
 };
 
 function createAbortError(): Error {
@@ -279,6 +280,48 @@ export async function submitUrlScan(
 
   return requestApi<Report>(
     "/api/scans/url",
+    (payload) => {
+      const parsed = ReportSuccessSchema.safeParse(payload);
+      if (!parsed.success || !parsed.data.data) {
+        return { success: false };
+      }
+      const report = Report.safeParse(parsed.data.data);
+      if (!report.success) {
+        return { success: false };
+      }
+      return { success: true, data: report.data };
+    },
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers ?? {}),
+      },
+      body: JSON.stringify(validated.data),
+    }
+  );
+}
+
+export async function submitPrivacyScan(
+  request: PrivacyScanRequest,
+  options: ApiRequestOptions = {}
+): Promise<Report> {
+  const validated = PrivacyScanRequest.safeParse(request);
+  if (!validated.success) {
+    throw new ApiClientError({
+      code: "VALIDATION_ERROR",
+      status: 400,
+      serverMessage: "Invalid privacy scan request",
+      fields: validated.error.issues.map((i) => ({
+        path: i.path.join("."),
+        message: i.message,
+      })),
+    });
+  }
+
+  return requestApi<Report>(
+    "/api/scans/privacy",
     (payload) => {
       const parsed = ReportSuccessSchema.safeParse(payload);
       if (!parsed.success || !parsed.data.data) {
