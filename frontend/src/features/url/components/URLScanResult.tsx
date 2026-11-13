@@ -5,6 +5,7 @@ import { AssessmentHeader } from "@/components/reports/AssessmentHeader";
 import { FindingGroup } from "@/components/reports/FindingGroup";
 import { LimitationsPanel } from "@/components/reports/LimitationsPanel";
 import { PartialBanner } from "@/components/reports/PartialBanner";
+import { URLDetailsCard } from "./URLDetailsCard";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Clock, ShieldCheck } from "lucide-react";
 
@@ -83,7 +84,7 @@ export function URLScanResult({ report }: URLScanResultProps) {
 
       {/* 6. Technical URL details */}
       <section aria-label="Technical URL details">
-        {/* URLDetailsCard will be wired in Task 3 */}
+        <URLDetailsCard details={report.details} />
       </section>
 
       {/* 7. Findings grouped by category */}
