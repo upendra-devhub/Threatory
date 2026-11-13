@@ -1,4 +1,4 @@
-import { ApiError, ApiSuccess, Report } from "@threatory/contracts";
+import { ApiError, ApiSuccess, Report, UrlScanRequest } from "@threatory/contracts";
 import { z } from "zod";
 
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
@@ -71,6 +71,9 @@ export class ApiNetworkError extends Error {
 export interface ApiRequestOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
+  method?: "GET" | "POST" | "DELETE" | "PUT";
+  body?: string;
+  headers?: Record<string, string>;
 }
 
 export const HealthResponseSchema = z.object({
@@ -85,6 +88,7 @@ export type HealthStatusResult =
 export const queryKeys = {
   report: (scanId: string) => ["report", scanId] as const,
   health: () => ["api-health"] as const,
+  urlScan: () => ["url-scan"] as const,
 };
 
 function createAbortError(): Error {
@@ -129,12 +133,16 @@ async function performRelativeFetch(
   }, timeoutMs);
 
   try {
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      ...(options.headers ?? {}),
+    };
+
     return await fetch(path, {
-      method: "GET",
+      method: options.method ?? "GET",
       credentials: "include",
-      headers: {
-        Accept: "application/json",
-      },
+      headers,
+      body: options.body,
       signal: controller.signal,
     });
   } catch (error) {
@@ -249,6 +257,48 @@ export async function getReport(
       return { success: true, data: report.data };
     },
     options
+  );
+}
+
+export async function submitUrlScan(
+  request: UrlScanRequest,
+  options: ApiRequestOptions = {}
+): Promise<Report> {
+  const validated = UrlScanRequest.safeParse(request);
+  if (!validated.success) {
+    throw new ApiClientError({
+      code: "VALIDATION_ERROR",
+      status: 400,
+      serverMessage: "Invalid URL scan request",
+      fields: validated.error.issues.map((i) => ({
+        path: i.path.join("."),
+        message: i.message,
+      })),
+    });
+  }
+
+  return requestApi<Report>(
+    "/api/scans/url",
+    (payload) => {
+      const parsed = ReportSuccessSchema.safeParse(payload);
+      if (!parsed.success || !parsed.data.data) {
+        return { success: false };
+      }
+      const report = Report.safeParse(parsed.data.data);
+      if (!report.success) {
+        return { success: false };
+      }
+      return { success: true, data: report.data };
+    },
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers ?? {}),
+      },
+      body: JSON.stringify(validated.data),
+    }
   );
 }
 
