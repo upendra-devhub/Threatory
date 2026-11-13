@@ -1,10 +1,10 @@
 # HANDOFF
 
 ## Baton
-Current owner: Person B            Updated: 2026-11-13
-Status: READY
-Last completed: CP-08 (pending human gate and `cp-08-done` tag)
-Current checkpoint: CP-08 completed, next is CP-09
+Current owner: Sana            Updated: 2026-11-13
+Status: IN PROGRESS
+Last completed: CP-08 (tag `cp-08-done`)
+Current checkpoint: CP-09
 Current branch: `main`
 
 ## Exact next step
@@ -89,7 +89,7 @@ Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
 | CP-05 | Person A | 2026-11-13 | `cp-05-done` | URL Analyzer screen (`/url-analyzer`), React Hook Form + `UrlScanRequest`, `useUrlScan` mutation hook, `URLDetailsCard`, strict plain-text URL rendering, `ErrorState` with retry, Playwright E2E infrastructure with in-memory MongoDB server, vitest-axe accessibility |
 | CP-06 | Person B | 2026-11-13 | `cp-06-done` | URL advanced detection (`URL_LOOKALIKE`, `URL_HOMOGRAPH`, `URL_BRAND_SUBDOMAIN`, `URL_SHORTENER`, `URL_FEED_MATCH`), Tranco 10k dataset (`top-domains.txt`), OpenPhish & URLhaus sync, node-cron scheduler (`FEEDS_SYNC_ENABLED`), evaluation framework (`docs/evaluation-url.md`, 0.00% FPR), bumped to `url-1.1.0` |
 | CP-07 | Person A | 2026-11-13 | `cp-07-done` | Privacy Exposure Analyzer engine & endpoint (`POST /api/scans/privacy`), local profile URL parsing, 9 detection rules (`privacy-1.0.0`), sensitive value masking, zero raw storage (`submittedText` never persisted), 7-day TTL retention, golden inputs P1-P4, comprehensive privacy leakage test |
-| CP-08 | Person A | 2026-11-13 | `cp-08-done` (human to apply) | Privacy Analyzer screen (`/privacy-analyzer`), dynamic profile rows (1-10 with removal safeguards), visible scope notice landmark (no password field exists), mandatory consent enforcement, zero browser storage leaks (`localStorage`, `sessionStorage`, `IndexedDB`, URL query/hash), safe masked report presentation, error/retry input preservation, and Playwright end-to-end journeys (P1, P2, reload persistence, mobile viewport) |
+| CP-08 | Person A | 2026-11-13 | `cp-08-done` | Privacy Analyzer screen (`/privacy-analyzer`), dynamic profile rows (1-10 with removal safeguards), visible scope notice landmark (no password field exists), mandatory consent enforcement, zero browser storage leaks (`localStorage`, `sessionStorage`, `IndexedDB`, URL query/hash), safe masked report presentation, error/retry input preservation, and Playwright end-to-end journeys (P1, P2, reload persistence, mobile viewport) |
 
 ## Decisions
 1. `main` was created after CP-01 at `cp-01-done` (`c9a832c`) because the pre-CP-01 setup step existed only in the PDF. History unchanged.
@@ -128,6 +128,7 @@ Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
 34. Strict zero-storage invariant: Sensitive user inputs (`submittedText`, unmasked usernames, display names, raw contact/financial tokens) are never persisted to `localStorage`, `sessionStorage`, `IndexedDB`, cookies, or URL query/hash parameters. Spies in unit tests and Playwright evaluations confirm zero storage calls.
 35. Form input preservation on error: If the backend returns an error (validation error, rate limit, timeout, or server failure), entered values are preserved in-memory for immediate retry. On successful completion (`resetTrigger`), the form cleanly resets.
 36. Masked presentation: Results omit numeric score boxes per privacy contract specifications, rendering only backend-returned sanitized evidence, "What was not checked" limitations, and direct link to the saved report `/reports/[scanId]`. Reopening `/reports/[scanId]` persists across browser reloads via the anonymous owner cookie.
+37. `cp-08-done` tag was missing after CP-08. Local verify (slow DOM test timeout) and e2e (Journey 5 double-fill) failed on Windows; fixed test-only in commit `ba053e6`, then tagged `cp-08-done`.
 
 ## Contract changes
 None. Schemas implemented strictly per Appendix A and Appendix C; no changes to `packages/contracts` were required.
