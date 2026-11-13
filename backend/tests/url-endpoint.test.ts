@@ -47,7 +47,7 @@ describe("POST /api/scans/url Endpoint", () => {
     expect(report.scanId).toMatch(/^scan-url-/);
     expect(report.module).toBe("url");
     expect(report.status).toBe("completed");
-    expect(report.rulesVersion).toBe("url-1.0.0");
+    expect(report.rulesVersion).toBe("url-1.1.0");
     expect(report.targetSummary).toBe(inputUrl);
     expect(report.assessment.score).toBe(50);
     expect(report.assessment.riskLevel).toBe("medium");

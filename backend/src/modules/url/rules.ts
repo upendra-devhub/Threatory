@@ -657,7 +657,7 @@ export function checkHomograph(normalised: NormalisedUrl): FindingResult {
       title: config.title,
       outcome: "pass",
       severity: "info",
-      evidence: "Host is an IP address literal; homograph analysis not applicable",
+      evidence: "IP destination literal; homograph analysis not applicable",
       explanation: "Homograph analysis applies to domain name labels.",
       weight: 0,
       triggered: false,
