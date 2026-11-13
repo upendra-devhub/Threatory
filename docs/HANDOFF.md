@@ -4,6 +4,7 @@
 Current owner: upendra-devhub            Updated: 2026-11-13
 Status: READY
 Last completed: CP-09 (tag `cp-09-done`)
+Follow-up: cp-09-done plus follow-up fix commit `ccfb07b`: start CP-10 from main HEAD
 Current checkpoint: CP-09 completed, next is CP-10
 Current branch: `main`
 
@@ -68,10 +69,10 @@ The next checkpoint is **CP-10 — Website Auditor Screen**.
   - `tls-checker.ts`: TLS certificate and protocol checks (`tls.connect` with SNI, exact OpenSSL `authorizationError`, cert validity, protocol detection TLS 1.0-1.3, expiry calculation, redirect/HTTP check).
   - `http-checker.ts`: Safe HTTP fetch via SSRF guard, 7 security headers (`SITE_HSTS`, `SITE_CSP`, `SITE_XCTO`, `SITE_FRAMING`, `SITE_REFERRER_POLICY`, `SITE_PERMISSIONS_POLICY`, `SITE_VERSION_DISCLOSURE`), 3 cookie security checks (`SITE_COOKIE_SECURE`, `SITE_COOKIE_HTTPONLY`, `SITE_COOKIE_SAMESITE`).
   - `dns-checker.ts`: DNS resolution (`SITE_DNS_RESOLVES`), email DNS authentication checks (`SITE_SPF`, `SITE_DMARC`, `SITE_CAA`) with 5s DNS timeout.
-  - `service.ts`: Scan orchestration via `Promise.allSettled`, 8s per-check timeout, 25s overall budget, partial report generation on timeout, score & risk level computation, 30-day retention (`expiresAt = createdAt + 30 days`), zero cookie values and zero response bodies stored.
+  - `service.ts`: Scan orchestration via `Promise.allSettled`, 8s per-check timeout, 25s overall budget, partial report generation on timeout, risk level computation (no score is computed for website scans), 30-day retention (`expiresAt = createdAt + 30 days`), zero cookie values and zero response bodies stored.
   - `index.ts`: Public module exports.
 
-### Active Website Finding Codes (20 total across 4 categories)
+### Active Website Finding Codes (across 4 categories)
 1. **DNS (4 codes):**
    - `SITE_DNS_RESOLVES`: Target hostname resolves via system DNS A/AAAA lookup.
    - `SITE_SPF`: Target apex domain defines a valid SPF (`v=spf1`) record in DNS TXT.
@@ -80,22 +81,24 @@ The next checkpoint is **CP-10 — Website Auditor Screen**.
 2. **TLS (6 codes):**
    - `SITE_HTTPS_AVAILABLE`: Target responds over TLS on port 443.
    - `SITE_TLS_CERT_VALID`: TLS certificate chain validates against standard trusted CAs (or specific CA bundle).
-   - `SITE_TLS_EXPIRY`: Certificate has >= 30 days remaining before expiration (warns if < 30 days, fails if expired).
-   - `SITE_TLS_PROTOCOL`: Negotiates modern TLS protocol (passes TLS 1.3/1.2, fails TLS 1.0/1.1 or SSLv3).
+   - `SITE_TLS_EXPIRY`: Warn medium within 14 days (or expired), warn low within 30 days, otherwise pass.
+   - `SITE_TLS_PROTOCOL`: Pass on modern TLS (TLS 1.2 or 1.3), warn (medium) on older protocols, never fail (not_assessed on connection failure).
    - `SITE_HTTP_TO_HTTPS`: Plain HTTP requests redirect automatically to HTTPS.
-   - `SITE_REDIRECTS`: Plain HTTP to HTTPS redirect occurs with at most 2 hops without insecure intermediate origins.
+   - `SITE_REDIRECTS`: Warn when more than 3 hops, or the chain leaves the registrable domain; otherwise pass.
 3. **Headers (7 codes):**
-   - `SITE_HSTS`: `Strict-Transport-Security` header present with `max-age >= 10886400` (18 weeks).
-   - `SITE_CSP`: `Content-Security-Policy` header present with valid policy directives.
+   - `SITE_HSTS`: Missing (medium) or max-age under 15552000 (low); otherwise pass.
+   - `SITE_CSP`: Content-Security-Policy missing (medium) or allows unsafe-inline/unsafe-eval in script-src/default-src (low); otherwise pass.
    - `SITE_XCTO`: `X-Content-Type-Options: nosniff` header present.
    - `SITE_FRAMING`: Anti-clickjacking protection via CSP `frame-ancestors` or `X-Frame-Options: DENY|SAMEORIGIN`.
    - `SITE_REFERRER_POLICY`: `Referrer-Policy` header restricts referrer leakage (`strict-origin-when-cross-origin`, `no-referrer`, etc.).
    - `SITE_PERMISSIONS_POLICY`: `Permissions-Policy` header restricts sensitive browser features (e.g. geolocation, camera).
    - `SITE_VERSION_DISCLOSURE`: Server does not disclose granular software versions in `Server` or `X-Powered-By` headers.
-4. **Cookies (3 codes):**
-   - `SITE_COOKIE_SECURE`: Cookies marked with the `Secure` flag.
-   - `SITE_COOKIE_HTTPONLY`: Session/sensitive cookies marked with `HttpOnly` flag.
-   - `SITE_COOKIE_SAMESITE`: Cookies define `SameSite=Lax` or `SameSite=Strict`.
+4. **Cookies:**
+   - When no `Set-Cookie` header is present on the checked response, emits a single pass finding: `SITE_COOKIE_SECURE` (`outcome: "pass"`, `severity: "info"`, evidence: "No Set-Cookie header observed on the checked response").
+   - When cookies are present, evaluates up to three rules per cookie name:
+     - `SITE_COOKIE_SECURE`: Missing on an HTTPS response (medium).
+     - `SITE_COOKIE_HTTPONLY`: Missing (medium if auth/session-like name, otherwise low).
+     - `SITE_COOKIE_SAMESITE`: Missing or None (low).
 
 ### Test Injection Points
 - `AddressPolicy`: Pluggable IP validator function `(ip: string) => boolean`. In production, defaults to `isPublicUnicastAddress` (`ssrf-guard.ts`); test suites inject custom policies to allow local test servers (`127.0.0.1`) while testing SSRF enforcement separately.
@@ -118,10 +121,10 @@ The next checkpoint is **CP-10 — Website Auditor Screen**.
 - **Execution:** `POST /api/scans/website` with JSON payload `{"url": "https://example.com", "authorised": true}`
 - **Observed Result:**
   - Status: `"completed"`
-  - Score: `88` (or 85-90 depending on HSTS/Permissions-Policy)
+  - Score: None (score is omitted for website scans per Appendix A/B3; URL module only)
   - Risk Level: `medium` (due to missing HSTS on example.com)
   - Certificate: Valid X.509 certificate issued by DigiCert / SSL Corporation to `example.com`, negotiated protocol TLSv1.3.
-  - Finding Groups: All 4 groups populated (`dns`: 4 findings, `tls`: 6 findings, `headers`: 7 findings, `cookies`: 3 findings = 20 total findings).
+  - Finding Groups: All 4 groups populated (`dns`: 4 findings, `tls`: 6 findings, `headers`: 7 findings, `cookies`: 1 finding [single pass] = 18 total findings).
 
 ### Stored-Data & Retention Rules
 - **Absolute No-Storage Rule:** Response bodies and cookie values are **never** stored, logged, or returned in findings or reports. Cookie analysis retains only cookie name, secure/httpOnly flags, and sameSite attribute.
@@ -206,7 +209,9 @@ Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
 41. Body reads are capped at 256 KB (`MAX_BODY_BYTES = 262144`) to protect against decompression and resource exhaustion attacks. Response bodies and cookie values are never logged, stored in MongoDB, or returned in API responses.
 42. In `service.ts`, scan checks are orchestrated using `Promise.allSettled` bounded by an 8-second per-check timeout and a 25-second overall scan budget. If a check times out or fails unexpectedly, the scan returns status `"partial"` and emits `not_assessed` findings for the uncompleted checks, rather than failing the entire scan.
 43. In `tls-checker.ts`, certificate inspection uses `tls.connect` with `rejectUnauthorized: false` to safely inspect self-signed or expired certificates without aborting, capturing exact OpenSSL error codes (`DEPTH_ZERO_SELF_SIGNED_CERT`, `CERT_HAS_EXPIRED`, etc.), validity dates, subject, issuer, and negotiated TLS protocol.
-44. In `backend/src/routes/scans.ts`, `POST /api/scans/website` enforces `{ url, authorised: true }`. Input missing `authorised: true` or with invalid URL format immediately returns 400 `VALIDATION_ERROR` (W2); SSRF targets return 422 `TARGET_BLOCKED` (W1); valid authorized public targets return 201 `ApiSuccess(Report)` (W3).
+44. In `backend/src/routes/scans.ts`, `POST /api/scans/website` enforces `{ url, authorised: true }`. Input missing `authorised: true` or with invalid URL format immediately returns 400 `VALIDATION_ERROR` (W2); SSRF targets return 422 `TARGET_BLOCKED` (W1); valid authorized public targets return 200 `ApiSuccess(Report)` (W3). Note: `POST /api/scans/website` and `POST /api/scans/privacy` return 200, whereas `POST /api/scans/url` returns 201.
+45. Contract fixtures `website-report-*.json` use `SITE_HEADER_HSTS` and `SITE_HEADER_CSP`, while the brief Appendix B3 and the CP-09 prompt name the codes `SITE_HSTS` and `SITE_CSP`. The backend follows Appendix B3. The contract schema accepts any string code, so both validate. CP-10 frontend must key on `SITE_*` codes from B3, not on the fixture names.
+46. In follow-up fix commit `ccfb07b` on `main` ("fix(CP-09): align website labels, cookie finding and HANDOFF with brief"): aligned website assessment labels to exactly "Low", "Medium", "High" (keeping "No configuration issues observed" for none_detected) per Appendix B3; updated cookie evaluation to emit a single pass finding (`SITE_COOKIE_SECURE`) when no `Set-Cookie` header is present on the checked response.
 
 ## Contract changes
 None. Schemas implemented strictly per Appendix A and Appendix C; no changes to `packages/contracts` were required.
@@ -255,6 +260,7 @@ None. Schemas implemented strictly per Appendix A and Appendix C; no changes to 
 3. On Windows terminal environments, running backend tests in Standard Sandbox mode (without bypass) encounters `EACCES` on loopback `127.0.0.1` sockets (used by Supertest/Express and MongoMemoryServer); running tests with elevated network permissions allows full socket binding.
 
 ## Parking lot
+- Endpoint status code consistency: `POST /api/scans/website` and `/privacy` return 200, whereas `/url` returns 201 (revisit in CP-12).
 - Website Security Auditor frontend (`CP-10`).
 - History pagination/filtering, report deletion UI, and dashboard summary with Recharts (`CP-11`).
 - Dark mode toggle or theme customizer.

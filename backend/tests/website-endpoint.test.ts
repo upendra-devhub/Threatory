@@ -97,7 +97,7 @@ describe("POST /api/scans/website Endpoint (Task 9d)", () => {
         rulesVersion: "website-1.0.0",
         targetSummary: "https://degraded-site.example.org",
         assessment: {
-          label: "Medium risk",
+          label: "Medium",
           riskLevel: "medium",
         },
         findings: [
@@ -190,7 +190,7 @@ describe("POST /api/scans/website Endpoint (Task 9d)", () => {
         rulesVersion: "website-1.0.0",
         targetSummary: "https://example.com",
         assessment: {
-          label: "Low risk",
+          label: "Low",
           riskLevel: "low",
         },
         findings: [

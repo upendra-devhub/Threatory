@@ -373,25 +373,13 @@ export async function checkHeadersAndCookies(
   const cookieFindings: Finding[] = [];
 
   if (parsedCookies.length === 0) {
-    // "No Set-Cookie header: single pass"
+    // "No Set-Cookie header: single pass" (Appendix B3)
     cookieFindings.push(
       createFinding(
         "SITE_COOKIE_SECURE",
         "pass",
         "info",
-        "No Set-Cookie headers observed; no insecure cookie attributes found"
-      ),
-      createFinding(
-        "SITE_COOKIE_HTTPONLY",
-        "pass",
-        "info",
-        "No Set-Cookie headers observed; no insecure cookie attributes found"
-      ),
-      createFinding(
-        "SITE_COOKIE_SAMESITE",
-        "pass",
-        "info",
-        "No Set-Cookie headers observed; no insecure cookie attributes found"
+        "No Set-Cookie header observed on the checked response"
       )
     );
   } else {

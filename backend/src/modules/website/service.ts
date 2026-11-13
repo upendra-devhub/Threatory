@@ -35,17 +35,17 @@ export interface AnalyseWebsiteResult {
 function calculateRiskLevel(findings: Finding[]): { riskLevel: RiskLevel; label: string } {
   const hasFail = findings.some((f) => f.outcome === "fail");
   if (hasFail) {
-    return { riskLevel: "high", label: "High risk" };
+    return { riskLevel: "high", label: "High" };
   }
 
   const hasMediumWarn = findings.some((f) => f.outcome === "warn" && f.severity === "medium");
   if (hasMediumWarn) {
-    return { riskLevel: "medium", label: "Medium risk" };
+    return { riskLevel: "medium", label: "Medium" };
   }
 
   const hasLowWarn = findings.some((f) => f.outcome === "warn" && f.severity === "low");
   if (hasLowWarn) {
-    return { riskLevel: "low", label: "Low risk" };
+    return { riskLevel: "low", label: "Low" };
   }
 
   return { riskLevel: "none_detected", label: "No configuration issues observed" };
@@ -244,7 +244,20 @@ export async function analyseWebsite(
       "SITE_CAA",
     ];
 
-    const findings: Finding[] = canonicalOrder.map((code) => {
+    // Assemble findings in canonical order.
+    // If no cookies were present on the response, a single pass finding (SITE_COOKIE_SECURE)
+    // was emitted per Appendix B3; omit SITE_COOKIE_HTTPONLY and SITE_COOKIE_SAMESITE from canonical assembly.
+    const hasSingleCookiePass =
+      findingsMap.get("SITE_COOKIE_SECURE")?.evidence ===
+      "No Set-Cookie header observed on the checked response";
+
+    const effectiveOrder = hasSingleCookiePass
+      ? canonicalOrder.filter(
+          (code) => code !== "SITE_COOKIE_HTTPONLY" && code !== "SITE_COOKIE_SAMESITE"
+        )
+      : canonicalOrder;
+
+    const findings: Finding[] = effectiveOrder.map((code) => {
       const existing = findingsMap.get(code);
       if (existing) return existing;
       return createFallbackNotAssessedFinding(code, "Check could not be completed");

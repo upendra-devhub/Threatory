@@ -131,7 +131,7 @@ describe("Headers, Cookies, and Email DNS Checks (Task 9c)", () => {
   });
 
   describe("Cookies Checks and Invariants", () => {
-    it("emits pass for all cookie checks when no Set-Cookie header is sent", async () => {
+    it("emits single pass finding for cookies when no Set-Cookie header is sent", async () => {
       currentResponseStatus = 200;
       currentResponseHeaders = {};
 
@@ -143,11 +143,16 @@ describe("Headers, Cookies, and Email DNS Checks (Task 9c)", () => {
         allowCustomPort: true,
       });
 
-      expect(cookieFindings).toHaveLength(3);
-      for (const f of cookieFindings) {
-        expect(f.outcome).toBe("pass");
-        expect(f.severity).toBe("info");
-      }
+      expect(cookieFindings).toHaveLength(1);
+      const firstCookie = cookieFindings[0];
+      expect(firstCookie).toBeDefined();
+      expect(firstCookie?.code).toBe("SITE_COOKIE_SECURE");
+      expect(firstCookie?.category).toBe("cookies");
+      expect(firstCookie?.outcome).toBe("pass");
+      expect(firstCookie?.severity).toBe("info");
+      expect(firstCookie?.evidence).toBe(
+        "No Set-Cookie header observed on the checked response"
+      );
     });
 
     it("evaluates cookie flags: missing Secure, HttpOnly, SameSite, and never leaks cookie values", async () => {
