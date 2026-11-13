@@ -1,27 +1,38 @@
 # HANDOFF
 
 ## Baton
-Current owner: Person A            Updated: 2026-11-13
+Current owner: Person B            Updated: 2026-11-13
 Status: READY
-Last completed: CP-07 (pending human gate and `cp-07-done` tag)
-Current checkpoint: CP-07 completed, next is CP-08
+Last completed: CP-08 (pending human gate and `cp-08-done` tag)
+Current checkpoint: CP-08 completed, next is CP-09
 Current branch: `main`
 
 ## Exact next step
-The next checkpoint is **CP-08 — Privacy Exposure Analyzer Frontend**.
-- Person B takes the baton to implement the Privacy Analyzer frontend UI (`/privacy-analyzer`) connecting to the completed backend `POST /api/scans/privacy` endpoint.
-- Masked evidence representations and strict no-storage constraints must be preserved in UI rendering.
-- Golden inputs P1 through P4 can be used for end-to-end and regression testing across the privacy analysis flow.
+The next checkpoint is **CP-09 — Website Auditor Engine & Endpoint**.
+- Person B takes the baton to implement the Website Security Auditor engine backend (`backend/src/modules/website/`) and the `POST /api/scans/website` endpoint.
+- Implement the 8 website security rules per Appendix B3: `WEB_TLS_VERSION`, `WEB_CERT_VALIDITY`, `WEB_HSTS_MISSING`, `WEB_CSP_MISSING`, `WEB_XFO_MISSING`, `WEB_XXP_DEPRECATED`, `WEB_SERVER_DISCLOSED`, `WEB_COOKIE_INSECURE`.
+- Implement safe HTTP client fetches with strict timeouts (5s), redirect limit (3), size cap (2MB), and SSRF prevention.
+- Compute score (0-100) and risk level per Appendix B3 scoring weights.
+- Persist completed reports with 30-day retention and owner cookie identification.
+- Golden inputs W1 through W4 will validate detection accuracy.
 
-## Privacy Module Reference (CP-07)
+## Privacy Module Reference (CP-07 & CP-08)
 - **Rules Version:** `privacy-1.0.0`
-- **Module Location:** `backend/src/modules/privacy/`
+- **Module Location (Backend):** `backend/src/modules/privacy/`
   - `normalise.ts`: Input normalization, consent verification, local profile URL parsing, and display-name fragment extraction.
   - `masking.ts`: Zero-leakage masking utilities for emails, phone numbers, tokens, cards, and usernames.
   - `rules.config.ts`: Centralized rule metadata and configuration descriptors for all 9 privacy rules.
   - `rules.ts`: Deterministic detection engine executing all 9 exposure rules with local validation (Luhn algorithm, `validator.isEmail`, `libphonenumber-js`).
   - `service.ts`: Privacy report generation, assessment without numeric score, safe target summary, and mandatory privacy limitations.
   - `index.ts`: Public module exports.
+- **Screen Location (Frontend):** `frontend/src/features/privacy/`
+  - `components/PrivacyScanForm.tsx`: React Hook Form + Zod resolver, dynamic profile rows (1-10), live 10,000 char counter, consent enforcement.
+  - `components/ProfileFields.tsx`: Dynamic profile row array with platform suggestions, username, optional URL, and deletion protection on single rows.
+  - `components/PrivacyScopeNotice.tsx`: Landmark region detailing what is and is not analyzed; explicit warnings against passwords/IDs.
+  - `components/ConsentCheckbox.tsx`: Accessible explicit consent confirmation checkbox.
+  - `components/PrivacyScanProgress.tsx`: Politeness-aware progress feedback state.
+  - `components/PrivacyResult.tsx`: Masked report presentation, limitations panel, and navigation to saved report.
+  - `hooks/usePrivacyScan.ts`: TanStack Query mutation hook managing submission, error mapping, and memory-only retry state.
 
 ### Active Privacy Finding Codes (9 total)
 1. `PRIV_USERNAME_REUSE` (identity, low/medium, warn): The same username was supplied across 2 (low) or 3+ (medium) profiles.
@@ -77,7 +88,8 @@ Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
 | CP-04 | Person A | 2026-11-12 | `cp-04-done` | URL normaliser (`WHATWG URL` + `tldts`), 11 core detection rules (`url-1.0.0`), weighted scoring engine, `POST /api/scans/url` endpoint with 30-day TTL persistence, zero-network isolation tests, golden inputs U1 to U4 |
 | CP-05 | Person A | 2026-11-13 | `cp-05-done` | URL Analyzer screen (`/url-analyzer`), React Hook Form + `UrlScanRequest`, `useUrlScan` mutation hook, `URLDetailsCard`, strict plain-text URL rendering, `ErrorState` with retry, Playwright E2E infrastructure with in-memory MongoDB server, vitest-axe accessibility |
 | CP-06 | Person B | 2026-11-13 | `cp-06-done` | URL advanced detection (`URL_LOOKALIKE`, `URL_HOMOGRAPH`, `URL_BRAND_SUBDOMAIN`, `URL_SHORTENER`, `URL_FEED_MATCH`), Tranco 10k dataset (`top-domains.txt`), OpenPhish & URLhaus sync, node-cron scheduler (`FEEDS_SYNC_ENABLED`), evaluation framework (`docs/evaluation-url.md`, 0.00% FPR), bumped to `url-1.1.0` |
-| CP-07 | Person A | 2026-11-13 | `cp-07-done` (human to apply) | Privacy Exposure Analyzer engine & endpoint (`POST /api/scans/privacy`), local profile URL parsing, 9 detection rules (`privacy-1.0.0`), sensitive value masking, zero raw storage (`submittedText` never persisted), 7-day TTL retention, golden inputs P1-P4, comprehensive privacy leakage test |
+| CP-07 | Person A | 2026-11-13 | `cp-07-done` | Privacy Exposure Analyzer engine & endpoint (`POST /api/scans/privacy`), local profile URL parsing, 9 detection rules (`privacy-1.0.0`), sensitive value masking, zero raw storage (`submittedText` never persisted), 7-day TTL retention, golden inputs P1-P4, comprehensive privacy leakage test |
+| CP-08 | Person A | 2026-11-13 | `cp-08-done` (human to apply) | Privacy Analyzer screen (`/privacy-analyzer`), dynamic profile rows (1-10 with removal safeguards), visible scope notice landmark (no password field exists), mandatory consent enforcement, zero browser storage leaks (`localStorage`, `sessionStorage`, `IndexedDB`, URL query/hash), safe masked report presentation, error/retry input preservation, and Playwright end-to-end journeys (P1, P2, reload persistence, mobile viewport) |
 
 ## Decisions
 1. `main` was created after CP-01 at `cp-01-done` (`c9a832c`) because the pre-CP-01 setup step existed only in the PDF. History unchanged.
@@ -109,6 +121,13 @@ Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
 27. In CP-07, Privacy Analyzer computes `riskLevel` as the highest severity among triggered findings with score omitted per Appendix B2 and contracts; label is `"No exposure patterns detected"` or `"${N} exposure signals found"`.
 28. In CP-07, payment card spans passing Luhn validation are mutually excluded from phone number detection in `findPhoneNumbersInText` to eliminate false-positive phone detections on credit card strings.
 29. In CP-07, mandatory explicit consent (`consent === true`) is validated up front before any processing; missing or false consent immediately returns 400 `VALIDATION_ERROR` with field `consent`.
+30. In CP-08, worked directly on `main` per prompt instructions with 6 granular task commits (`CP-08: <task>`).
+31. Form limits and field validation: 1 to 10 profile rows (`useFieldArray`), platform (1-30 chars with datalist suggestions), username (1-64 chars regex `^[A-Za-z0-9._-]+$`), optional profile URL (up to 2048 chars), optional display name (up to 80 chars), and submitted text (up to 10,000 chars with live counter).
+32. Consent enforcement: The submit button is strictly disabled until the consent checkbox is checked (`consent === true`). Submission is blocked if consent is unchecked.
+33. Strictly no password inputs: Verified via component architecture, DOM assertion tests, and Playwright that zero `input[type="password"]` controls exist on the page.
+34. Strict zero-storage invariant: Sensitive user inputs (`submittedText`, unmasked usernames, display names, raw contact/financial tokens) are never persisted to `localStorage`, `sessionStorage`, `IndexedDB`, cookies, or URL query/hash parameters. Spies in unit tests and Playwright evaluations confirm zero storage calls.
+35. Form input preservation on error: If the backend returns an error (validation error, rate limit, timeout, or server failure), entered values are preserved in-memory for immediate retry. On successful completion (`resetTrigger`), the form cleanly resets.
+36. Masked presentation: Results omit numeric score boxes per privacy contract specifications, rendering only backend-returned sanitized evidence, "What was not checked" limitations, and direct link to the saved report `/reports/[scanId]`. Reopening `/reports/[scanId]` persists across browser reloads via the anonymous owner cookie.
 
 ## Contract changes
 None. Schemas implemented strictly per Appendix A and Appendix C; no changes to `packages/contracts` were required.
@@ -152,7 +171,6 @@ None. Schemas implemented strictly per Appendix A and Appendix C; no changes to 
 3. On Windows terminal environments, running backend tests in Standard Sandbox mode (without bypass) encounters `EACCES` on loopback `127.0.0.1` sockets (used by Supertest/Express and MongoMemoryServer); running tests with elevated network permissions allows full socket binding.
 
 ## Parking lot
-- Privacy Exposure Analyzer frontend form and submission interaction (`CP-08`).
 - Website Security Auditor backend and frontend (`CP-09`, `CP-10`).
 - History pagination/filtering, report deletion UI, and dashboard summary with Recharts (`CP-11`).
 - Dark mode toggle or theme customizer.
