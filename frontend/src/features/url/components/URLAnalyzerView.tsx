@@ -22,11 +22,15 @@ export function URLAnalyzerView({
   const urlScan = useUrlScan();
 
   const handleScan = async (data: UrlScanRequest) => {
-    if (onScanOverride) {
-      await onScanOverride(data);
-      return;
+    try {
+      if (onScanOverride) {
+        await onScanOverride(data);
+        return;
+      }
+      await urlScan.scan(data);
+    } catch {
+      // Error state is captured and displayed via useUrlScan
     }
-    await urlScan.scan(data);
   };
 
   const currentReport = urlScan.report ?? initialReport;

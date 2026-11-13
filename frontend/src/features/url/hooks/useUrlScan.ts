@@ -11,7 +11,7 @@ import {
 } from "@/lib/api-client";
 
 export interface UseUrlScanResult {
-  scan: (data: UrlScanRequest) => Promise<Report>;
+  scan: (data: UrlScanRequest) => Promise<Report | undefined>;
   retry: () => Promise<Report | undefined>;
   report: Report | null;
   isPending: boolean;
@@ -34,18 +34,28 @@ export function useUrlScan(): UseUrlScanResult {
     },
   });
 
-  const scan = async (data: UrlScanRequest): Promise<Report> => {
+  const scan = async (data: UrlScanRequest): Promise<Report | undefined> => {
     setLastSubmittedUrl(data.url);
     // Clear previous report so fresh analysis state is shown
     setReport(null);
-    return await mutation.mutateAsync(data);
+    try {
+      return await mutation.mutateAsync(data);
+    } catch {
+      // Error is safely captured in mutation.error
+      return undefined;
+    }
   };
 
   const retry = async (): Promise<Report | undefined> => {
     if (!lastSubmittedUrl || mutation.isPending) {
       return undefined;
     }
-    return await mutation.mutateAsync({ url: lastSubmittedUrl });
+    try {
+      return await mutation.mutateAsync({ url: lastSubmittedUrl });
+    } catch {
+      // Error is safely captured in mutation.error
+      return undefined;
+    }
   };
 
   const reset = () => {
