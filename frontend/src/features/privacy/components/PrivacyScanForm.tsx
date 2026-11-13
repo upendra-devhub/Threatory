@@ -144,7 +144,11 @@ export function PrivacyScanForm({
       consent: true,
     };
 
-    await onSubmit(payload);
+    try {
+      await onSubmit(payload);
+    } catch {
+      // Error is handled by caller/mutation; preserve entered fields
+    }
   };
 
   return (

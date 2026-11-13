@@ -20,20 +20,32 @@ export function PrivacyAnalyzerView({
   initialReport = null,
 }: PrivacyAnalyzerViewProps) {
   const privacyScan = usePrivacyScan();
+  const [overrideReport, setOverrideReport] = React.useState<Report | null>(null);
+  const [overrideError, setOverrideError] = React.useState<string | null>(null);
+  const [overrideTrigger, setOverrideTrigger] = React.useState(0);
 
   const handleScan = async (data: PrivacyScanRequest) => {
-    try {
-      if (onScanOverride) {
-        await onScanOverride(data);
-        return;
+    if (onScanOverride) {
+      try {
+        setOverrideError(null);
+        const res = await onScanOverride(data);
+        if (res) {
+          setOverrideReport(res);
+          setOverrideTrigger((c) => c + 1);
+        }
+      } catch (err: unknown) {
+        setOverrideError(
+          err instanceof Error ? err.message : "Analysis could not be completed"
+        );
+        throw err;
       }
-      await privacyScan.scan(data);
-    } catch {
-      // Error state captured in usePrivacyScan
+      return;
     }
+    await privacyScan.scan(data);
   };
 
-  const currentReport = privacyScan.report ?? initialReport;
+  const currentReport = overrideReport ?? privacyScan.report ?? initialReport;
+  const currentGeneralError = overrideError ?? privacyScan.generalError;
 
   return (
     <div className="space-y-6">
@@ -54,7 +66,7 @@ export function PrivacyAnalyzerView({
             onSubmit={handleScan}
             isLoading={privacyScan.isPending}
             serverFieldErrors={privacyScan.serverFieldErrors}
-            resetTrigger={privacyScan.resetTrigger}
+            resetTrigger={overrideTrigger || privacyScan.resetTrigger}
           />
         </CardContent>
       </Card>
@@ -63,10 +75,10 @@ export function PrivacyAnalyzerView({
       {privacyScan.isPending && <PrivacyScanProgress />}
 
       {/* General error state (rate limit, server error, timeout, network error) */}
-      {privacyScan.generalError && !privacyScan.isPending && (
+      {currentGeneralError && !privacyScan.isPending && (
         <ErrorState
           title="Analysis could not be completed"
-          description={privacyScan.generalError}
+          description={currentGeneralError}
           onRetry={privacyScan.lastSubmittedRequest ? privacyScan.retry : undefined}
           isRetrying={privacyScan.isPending}
           retryLabel="Retry analysis"
