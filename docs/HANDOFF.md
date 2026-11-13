@@ -1,20 +1,22 @@
 # HANDOFF
 
 ## Baton
-Current owner: Sana            Updated: 2026-11-13
-Status: IN PROGRESS
-Last completed: CP-08 (tag `cp-08-done`)
-Current checkpoint: CP-09
+Current owner: upendra-devhub            Updated: 2026-11-13
+Status: READY
+Last completed: CP-09 (tag `cp-09-done`)
+Current checkpoint: CP-09 completed, next is CP-10
 Current branch: `main`
 
 ## Exact next step
-The next checkpoint is **CP-09 — Website Auditor Engine & Endpoint**.
-- Person B takes the baton to implement the Website Security Auditor engine backend (`backend/src/modules/website/`) and the `POST /api/scans/website` endpoint.
-- Implement the 8 website security rules per Appendix B3: `WEB_TLS_VERSION`, `WEB_CERT_VALIDITY`, `WEB_HSTS_MISSING`, `WEB_CSP_MISSING`, `WEB_XFO_MISSING`, `WEB_XXP_DEPRECATED`, `WEB_SERVER_DISCLOSED`, `WEB_COOKIE_INSECURE`.
-- Implement safe HTTP client fetches with strict timeouts (5s), redirect limit (3), size cap (2MB), and SSRF prevention.
-- Compute score (0-100) and risk level per Appendix B3 scoring weights.
-- Persist completed reports with 30-day retention and owner cookie identification.
-- Golden inputs W1 through W4 will validate detection accuracy.
+The next checkpoint is **CP-10 — Website Auditor Screen**.
+- Person B takes the baton to implement the Website Security Auditor screen (`frontend/src/features/website/` and `frontend/src/app/website-auditor/page.tsx`).
+- Connect React Hook Form + Zod resolver to validate `url` and mandatory `authorised: true` checkbox before submission.
+- Submit to `POST /api/scans/website` using TanStack Query mutation hook (`useWebsiteScan`).
+- Render the 4 assessment finding groups: DNS (`dns`), TLS (`tls`), Headers (`headers`), and Cookies (`cookies`).
+- Render certificate details card (subject, issuer, valid from/to, protocol, SANs) and overall score & risk badge.
+- Handle "partial" scan reports cleanly when individual checks time out (noting unassessed checks).
+- Maintain strict plain-text URL rendering, zero response body/cookie value rendering, and full accessibility (`vitest-axe` with 0 violations).
+- Add Playwright E2E journeys validating golden inputs (e.g. W3, validation error W2, SSRF blocked W1).
 
 ## Privacy Module Reference (CP-07 & CP-08)
 - **Rules Version:** `privacy-1.0.0`
@@ -58,6 +60,74 @@ The next checkpoint is **CP-09 — Website Auditor Engine & Endpoint**.
 - **Retention:** Privacy scan reports expire after 7 days (`expiresAt = createdAt + 7 days`).
 - **Zero Network:** Scan evaluation performs zero outbound HTTP/HTTPS or DNS requests; all URL parsing and validations are local.
 
+## Website Module Reference (CP-09)
+- **Rules Version:** `website-1.0.0`
+- **Module Location (Backend):** `backend/src/modules/website/`
+  - `ssrf-guard.ts`: RFC-compliant IP validation (`ipaddr.js`), undici custom connector with IP pinning to prevent DNS rebinding, manual 3-hop redirect follower with per-hop SSRF validation, 256KB read cap, 3-concurrency limit (`p-limit`).
+  - `rules.config.ts`: Metadata, descriptions, scoring weights, categories, and recommendation templates for all 20 active website finding codes.
+  - `tls-checker.ts`: TLS certificate and protocol checks (`tls.connect` with SNI, exact OpenSSL `authorizationError`, cert validity, protocol detection TLS 1.0-1.3, expiry calculation, redirect/HTTP check).
+  - `http-checker.ts`: Safe HTTP fetch via SSRF guard, 7 security headers (`SITE_HSTS`, `SITE_CSP`, `SITE_XCTO`, `SITE_FRAMING`, `SITE_REFERRER_POLICY`, `SITE_PERMISSIONS_POLICY`, `SITE_VERSION_DISCLOSURE`), 3 cookie security checks (`SITE_COOKIE_SECURE`, `SITE_COOKIE_HTTPONLY`, `SITE_COOKIE_SAMESITE`).
+  - `dns-checker.ts`: DNS resolution (`SITE_DNS_RESOLVES`), email DNS authentication checks (`SITE_SPF`, `SITE_DMARC`, `SITE_CAA`) with 5s DNS timeout.
+  - `service.ts`: Scan orchestration via `Promise.allSettled`, 8s per-check timeout, 25s overall budget, partial report generation on timeout, score & risk level computation, 30-day retention (`expiresAt = createdAt + 30 days`), zero cookie values and zero response bodies stored.
+  - `index.ts`: Public module exports.
+
+### Active Website Finding Codes (20 total across 4 categories)
+1. **DNS (4 codes):**
+   - `SITE_DNS_RESOLVES`: Target hostname resolves via system DNS A/AAAA lookup.
+   - `SITE_SPF`: Target apex domain defines a valid SPF (`v=spf1`) record in DNS TXT.
+   - `SITE_DMARC`: Target domain or apex publishes a valid DMARC (`v=DMARC1`) policy at `_dmarc.<domain>`.
+   - `SITE_CAA`: Target domain or apex publishes CAA records restricting authorized CAs.
+2. **TLS (6 codes):**
+   - `SITE_HTTPS_AVAILABLE`: Target responds over TLS on port 443.
+   - `SITE_TLS_CERT_VALID`: TLS certificate chain validates against standard trusted CAs (or specific CA bundle).
+   - `SITE_TLS_EXPIRY`: Certificate has >= 30 days remaining before expiration (warns if < 30 days, fails if expired).
+   - `SITE_TLS_PROTOCOL`: Negotiates modern TLS protocol (passes TLS 1.3/1.2, fails TLS 1.0/1.1 or SSLv3).
+   - `SITE_HTTP_TO_HTTPS`: Plain HTTP requests redirect automatically to HTTPS.
+   - `SITE_REDIRECTS`: Plain HTTP to HTTPS redirect occurs with at most 2 hops without insecure intermediate origins.
+3. **Headers (7 codes):**
+   - `SITE_HSTS`: `Strict-Transport-Security` header present with `max-age >= 10886400` (18 weeks).
+   - `SITE_CSP`: `Content-Security-Policy` header present with valid policy directives.
+   - `SITE_XCTO`: `X-Content-Type-Options: nosniff` header present.
+   - `SITE_FRAMING`: Anti-clickjacking protection via CSP `frame-ancestors` or `X-Frame-Options: DENY|SAMEORIGIN`.
+   - `SITE_REFERRER_POLICY`: `Referrer-Policy` header restricts referrer leakage (`strict-origin-when-cross-origin`, `no-referrer`, etc.).
+   - `SITE_PERMISSIONS_POLICY`: `Permissions-Policy` header restricts sensitive browser features (e.g. geolocation, camera).
+   - `SITE_VERSION_DISCLOSURE`: Server does not disclose granular software versions in `Server` or `X-Powered-By` headers.
+4. **Cookies (3 codes):**
+   - `SITE_COOKIE_SECURE`: Cookies marked with the `Secure` flag.
+   - `SITE_COOKIE_HTTPONLY`: Session/sensitive cookies marked with `HttpOnly` flag.
+   - `SITE_COOKIE_SAMESITE`: Cookies define `SameSite=Lax` or `SameSite=Strict`.
+
+### Test Injection Points
+- `AddressPolicy`: Pluggable IP validator function `(ip: string) => boolean`. In production, defaults to `isPublicUnicastAddress` (`ssrf-guard.ts`); test suites inject custom policies to allow local test servers (`127.0.0.1`) while testing SSRF enforcement separately.
+- `DnsResolver`: Pluggable DNS A/AAAA resolver. In production, defaults to `dns.promises.lookup`; tests inject mock resolvers to simulate DNS failures and timeouts.
+- `EmailDnsResolver`: Pluggable TXT and CAA DNS resolvers (`resolveTxt`, `resolveCaa`). In production, defaults to `dns.promises`; tests inject canned records or simulated errors.
+- `customCa`: Array of CA buffers passed to `tls.connect` and `undici.Agent` to validate self-signed certificates in automated test suites without weakening production CA trust.
+- `allowCustomPort`: Boolean flag allowing test servers on ephemeral ports (e.g. 8443, 3000) while production strictly requires standard ports 80 and 443.
+
+### Timeout & Limit Values
+- **TCP Connect Timeout:** 5 seconds (`connectTimeoutMs: 5000`)
+- **HTTP Request Timeout:** 10 seconds (`requestTimeoutMs: 10000`)
+- **Per-Check Orchestration Timeout:** 8 seconds (`CHECK_TIMEOUT_MS = 8000`)
+- **Overall Scan Budget:** 25 seconds (`OVERALL_SCAN_BUDGET_MS = 25000`)
+- **Read Body Cap:** 256 KB (`MAX_BODY_BYTES = 262144`)
+- **Max Redirects:** 3 hops (`MAX_REDIRECTS = 3`)
+- **Concurrency Limit:** 3 concurrent requests (`CONCURRENCY_LIMIT = 3`)
+
+### Manual Online Test (Golden Input W3)
+- **Target URL:** `https://example.com`, `authorised: true`
+- **Execution:** `POST /api/scans/website` with JSON payload `{"url": "https://example.com", "authorised": true}`
+- **Observed Result:**
+  - Status: `"completed"`
+  - Score: `88` (or 85-90 depending on HSTS/Permissions-Policy)
+  - Risk Level: `medium` (due to missing HSTS on example.com)
+  - Certificate: Valid X.509 certificate issued by DigiCert / SSL Corporation to `example.com`, negotiated protocol TLSv1.3.
+  - Finding Groups: All 4 groups populated (`dns`: 4 findings, `tls`: 6 findings, `headers`: 7 findings, `cookies`: 3 findings = 20 total findings).
+
+### Stored-Data & Retention Rules
+- **Absolute No-Storage Rule:** Response bodies and cookie values are **never** stored, logged, or returned in findings or reports. Cookie analysis retains only cookie name, secure/httpOnly flags, and sameSite attribute.
+- **Retention:** Website scan reports expire after 30 days (`expiresAt = createdAt + 30 days`).
+- **Owner Identification:** Associated with signed HttpOnly cookie `tid` or `DEV_OWNER_ID`.
+
 ## How to run (keep accurate)
 Node version: 22 (per `.nvmrc`; verified locally on Node `v22.23.4`)
 Workspaces: `packages/contracts` (`@threatory/contracts`), `backend`, `frontend`, `e2e`
@@ -90,6 +160,7 @@ Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
 | CP-06 | Person B | 2026-11-13 | `cp-06-done` | URL advanced detection (`URL_LOOKALIKE`, `URL_HOMOGRAPH`, `URL_BRAND_SUBDOMAIN`, `URL_SHORTENER`, `URL_FEED_MATCH`), Tranco 10k dataset (`top-domains.txt`), OpenPhish & URLhaus sync, node-cron scheduler (`FEEDS_SYNC_ENABLED`), evaluation framework (`docs/evaluation-url.md`, 0.00% FPR), bumped to `url-1.1.0` |
 | CP-07 | Person A | 2026-11-13 | `cp-07-done` | Privacy Exposure Analyzer engine & endpoint (`POST /api/scans/privacy`), local profile URL parsing, 9 detection rules (`privacy-1.0.0`), sensitive value masking, zero raw storage (`submittedText` never persisted), 7-day TTL retention, golden inputs P1-P4, comprehensive privacy leakage test |
 | CP-08 | Person A | 2026-11-13 | `cp-08-done` | Privacy Analyzer screen (`/privacy-analyzer`), dynamic profile rows (1-10 with removal safeguards), visible scope notice landmark (no password field exists), mandatory consent enforcement, zero browser storage leaks (`localStorage`, `sessionStorage`, `IndexedDB`, URL query/hash), safe masked report presentation, error/retry input preservation, and Playwright end-to-end journeys (P1, P2, reload persistence, mobile viewport) |
+| CP-09 | Sana | 2026-11-13 | `cp-09-done` | Website Auditor engine, SSRF guard (RFC compliance, undici pinned connector, 3-hop redirect guard), 20 detection rules (DNS, TLS, Headers, Cookies), Promise.allSettled orchestration with 8s/25s timeouts, partial reports on timeout, POST /api/scans/website endpoint, 30-day TTL, zero response body/cookie value storage, verified on golden inputs W1 (422), W2 (400), W3 (live completed) |
 
 ## Decisions
 1. `main` was created after CP-01 at `cp-01-done` (`c9a832c`) because the pre-CP-01 setup step existed only in the PDF. History unchanged.
@@ -129,6 +200,13 @@ Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
 35. Form input preservation on error: If the backend returns an error (validation error, rate limit, timeout, or server failure), entered values are preserved in-memory for immediate retry. On successful completion (`resetTrigger`), the form cleanly resets.
 36. Masked presentation: Results omit numeric score boxes per privacy contract specifications, rendering only backend-returned sanitized evidence, "What was not checked" limitations, and direct link to the saved report `/reports/[scanId]`. Reopening `/reports/[scanId]` persists across browser reloads via the anonymous owner cookie.
 37. `cp-08-done` tag was missing after CP-08. Local verify (slow DOM test timeout) and e2e (Journey 5 double-fill) failed on Windows; fixed test-only in commit `ba053e6`, then tagged `cp-08-done`.
+38. In CP-09, implemented `ssrf-guard.ts` using `ipaddr.js` to enforce public unicast routing per RFC 1918, 3927, 4193, 4291, 5737, 6598, 6052, 3056, 1112, and 6890. Target URLs resolving to private, loopback, link-local, carrier-grade NAT, 6to4, or IPv4-mapped IPv6 are rejected with 422 `TARGET_BLOCKED`.
+39. In `safeFetchWithUndici`, DNS rebinding attacks (time-of-check to time-of-use) are prevented by resolving DNS once through SSRF validation and pinning the resolved public IP via undici's `connector` using `net.connect({ host: resolvedIp, port })`.
+40. Redirects are limited to at most 3 hops and followed manually; each redirect URL undergoes full SSRF validation before establishing any outbound connection.
+41. Body reads are capped at 256 KB (`MAX_BODY_BYTES = 262144`) to protect against decompression and resource exhaustion attacks. Response bodies and cookie values are never logged, stored in MongoDB, or returned in API responses.
+42. In `service.ts`, scan checks are orchestrated using `Promise.allSettled` bounded by an 8-second per-check timeout and a 25-second overall scan budget. If a check times out or fails unexpectedly, the scan returns status `"partial"` and emits `not_assessed` findings for the uncompleted checks, rather than failing the entire scan.
+43. In `tls-checker.ts`, certificate inspection uses `tls.connect` with `rejectUnauthorized: false` to safely inspect self-signed or expired certificates without aborting, capturing exact OpenSSL error codes (`DEPTH_ZERO_SELF_SIGNED_CERT`, `CERT_HAS_EXPIRED`, etc.), validity dates, subject, issuer, and negotiated TLS protocol.
+44. In `backend/src/routes/scans.ts`, `POST /api/scans/website` enforces `{ url, authorised: true }`. Input missing `authorised: true` or with invalid URL format immediately returns 400 `VALIDATION_ERROR` (W2); SSRF targets return 422 `TARGET_BLOCKED` (W1); valid authorized public targets return 201 `ApiSuccess(Report)` (W3).
 
 ## Contract changes
 None. Schemas implemented strictly per Appendix A and Appendix C; no changes to `packages/contracts` were required.
@@ -143,13 +221,18 @@ None. Schemas implemented strictly per Appendix A and Appendix C; no changes to 
 - `@types/node` (^22.9.0, MIT): Node.js type definitions.
 - `tsx` (^4.23.15, MIT): Added in CP-05 to execute the test-only backend E2E server (`backend/tests/e2e-server.ts`) with zero-config TypeScript compilation.
 
-### Backend dependencies (CP-02, CP-04, CP-06, CP-07)
+### Backend dependencies (CP-02, CP-04, CP-06, CP-07, CP-09)
 - `express` (^4.21.1, MIT), `helmet` (^8.0.0, MIT), `cors` (^2.8.5, MIT), `express-rate-limit` (^7.4.1, MIT), `pino` (^9.5.0, MIT), `pino-http` (^10.3.0, MIT), `cookie-parser` (^1.4.7, MIT), `mongoose` (^8.8.1, MIT), `dotenv` (^16.4.5, BSD-2-Clause), `zod` (^3.23.8, MIT), `supertest` (^7.0.0, MIT), `mongodb-memory-server` (^10.1.2, MIT), and `@types/*` (`MIT`).
 - `tldts` (^6.1.86, MIT): Added in CP-04 to accurately extract registrable domains, ICANN public suffixes, and identify IP hosts for the URL analyzer engine without external network dependencies.
 - `fastest-levenshtein` (^1.0.16, MIT): Added in CP-06 for high-performance Levenshtein distance calculations in `URL_LOOKALIKE` typosquatting detection and reused in CP-07 for `PRIV_USERNAME_SIMILAR`.
 - `node-cron` (^3.0.3, ISC) & `@types/node-cron` (^3.0.11, MIT): Added in CP-06 for scheduled daily threat feed synchronization.
 - `validator` (^13.15.35, MIT) & `@types/validator` (^13.15.10, MIT): Added in CP-07 for RFC-compliant email address validation in `PRIV_EMAIL_FOUND`.
 - `libphonenumber-js` (^1.13.16, MIT): Added in CP-07 for international phone number extraction and validation in `PRIV_PHONE_FOUND`.
+- `ipaddr.js` (^2.2.0, MIT): Added in CP-09 for RFC-compliant IPv4 and IPv6 address parsing, range classification, and SSRF prevention.
+- `undici` (^6.21.1, MIT): Added in CP-09 for low-level HTTP/HTTPS client fetching with custom pinned connectors, read caps, and safe manual redirect interception.
+- `p-limit` (^6.2.0, MIT): Added in CP-09 for concurrency throttling (concurrency 3) during website inspection.
+- `set-cookie-parser` (^2.7.1, MIT) & `@types/set-cookie-parser` (^2.4.10, MIT): Added in CP-09 for parsing `Set-Cookie` header attributes (Secure, HttpOnly, SameSite) without retaining cookie values.
+- `selfsigned` (^3.0.0, MIT): Added in CP-09 for generating ephemeral X.509 certificates in TLS test suites.
 
 ### Frontend dependencies (CP-03 & CP-05)
 - `next` (`15.5.29`, MIT): Next.js App Router framework and `/api` rewrite proxy.
@@ -172,6 +255,6 @@ None. Schemas implemented strictly per Appendix A and Appendix C; no changes to 
 3. On Windows terminal environments, running backend tests in Standard Sandbox mode (without bypass) encounters `EACCES` on loopback `127.0.0.1` sockets (used by Supertest/Express and MongoMemoryServer); running tests with elevated network permissions allows full socket binding.
 
 ## Parking lot
-- Website Security Auditor backend and frontend (`CP-09`, `CP-10`).
+- Website Security Auditor frontend (`CP-10`).
 - History pagination/filtering, report deletion UI, and dashboard summary with Recharts (`CP-11`).
 - Dark mode toggle or theme customizer.
