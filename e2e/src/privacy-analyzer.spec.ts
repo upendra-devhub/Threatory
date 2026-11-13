@@ -239,6 +239,7 @@ test.describe("Privacy Analyzer End-to-End Journeys (Task 6)", () => {
     const urlInput = page.locator("#profiles\\.0\\.url");
     const textInput = page.getByLabel(/Text to analyze/i);
 
+    await platformInput.clear();
     await platformInput.fill("GitHub");
     await usernameInput.fill("preserved_user");
     await urlInput.fill("invalid-url-format");

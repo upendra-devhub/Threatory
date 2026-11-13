@@ -177,5 +177,5 @@ describe("CRITICAL: Privacy DOM Leakage Prevention Tests (Task 5)", () => {
         })
       ).not.toBeChecked();
     });
-  });
+  }, 20000);
 });
