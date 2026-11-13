@@ -5,6 +5,8 @@ import request from "supertest";
 import { ApiSuccess, Report } from "@threatory/contracts";
 import { app } from "../src/app.js";
 import { Scan } from "../src/models/scan.js";
+import { FeedEntry } from "../src/models/feedEntry.js";
+import { FeedSyncMeta } from "../src/models/feedSyncMeta.js";
 
 describe("POST /api/scans/url Endpoint", () => {
   let mongod: MongoMemoryServer;
@@ -23,6 +25,8 @@ describe("POST /api/scans/url Endpoint", () => {
 
   beforeEach(async () => {
     await Scan.deleteMany({});
+    await FeedEntry.deleteMany({});
+    await FeedSyncMeta.deleteMany({});
   });
 
   it("analyses a valid URL, saves with 30-day expiresAt, and returns contract-valid report", async () => {
@@ -91,6 +95,79 @@ describe("POST /api/scans/url Endpoint", () => {
     expect(report1.findings).toEqual(report2.findings);
     expect(report1.details).toEqual(report2.details);
     expect(report1.limitations).toEqual(report2.limitations);
+  });
+
+  describe("Threat Intelligence Local Feed Matching (CP-06 Task 4)", () => {
+    it("seeded feed entry produces URL_FEED_MATCH with risk level high and score 100", async () => {
+      // Seed a malicious feed entry
+      await FeedEntry.create({
+        target: "known-phishing-threat.net",
+        targetType: "host",
+        source: "openphish",
+        active: true,
+      });
+
+      const syncTimestamp = new Date("2026-11-13T10:00:00.000Z");
+      await FeedSyncMeta.create({
+        feed: "openphish",
+        lastAttemptAt: syncTimestamp,
+        lastSuccessAt: syncTimestamp,
+        status: "success",
+        recordsCount: 1,
+      });
+
+      const client = request.agent(app);
+      const res = await client
+        .post("/api/scans/url")
+        .send({ url: "https://known-phishing-threat.net/login" })
+        .expect(201);
+
+      const parsedEnvelope = ApiSuccess(Report).parse(res.body);
+      const report = parsedEnvelope.data;
+
+      expect(report.assessment.score).toBe(100);
+      expect(report.assessment.riskLevel).toBe("high");
+      expect(report.assessment.label).toBe("High");
+
+      const feedFinding = report.findings.find((f) => f.code === "URL_FEED_MATCH");
+      expect(feedFinding).toBeDefined();
+      expect(feedFinding?.outcome).toBe("fail");
+      expect(feedFinding?.severity).toBe("high");
+      expect(feedFinding?.evidence).toContain("matched malicious threat intelligence feed");
+
+      expect(report.limitations).toContain(
+        `Reputation checked against locally stored threat intelligence feeds (last updated: ${syncTimestamp.toISOString()})`
+      );
+    });
+
+    it("unmatched URL reports URL_FEED_MATCH pass with local feed checked limitation", async () => {
+      const syncTimestamp = new Date("2026-11-13T11:00:00.000Z");
+      await FeedSyncMeta.create({
+        feed: "openphish",
+        lastAttemptAt: syncTimestamp,
+        lastSuccessAt: syncTimestamp,
+        status: "success",
+        recordsCount: 100,
+      });
+
+      const client = request.agent(app);
+      const res = await client
+        .post("/api/scans/url")
+        .send({ url: "https://example.com/" })
+        .expect(201);
+
+      const parsedEnvelope = ApiSuccess(Report).parse(res.body);
+      const report = parsedEnvelope.data;
+
+      const feedFinding = report.findings.find((f) => f.code === "URL_FEED_MATCH");
+      expect(feedFinding).toBeDefined();
+      expect(feedFinding?.outcome).toBe("pass");
+      expect(feedFinding?.severity).toBe("info");
+
+      expect(report.limitations).toContain(
+        `Reputation checked against locally stored threat intelligence feeds (last updated: ${syncTimestamp.toISOString()})`
+      );
+    });
   });
 
   describe("Validation Error Handling", () => {

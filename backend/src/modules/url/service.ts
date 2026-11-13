@@ -1,12 +1,16 @@
 import crypto from "node:crypto";
+import mongoose from "mongoose";
 import { Report } from "@threatory/contracts";
 import { normaliseUrl, NormalisedUrl } from "./normalise.js";
 import { runAllRules, FindingResult, RunRulesOptions } from "./rules.js";
 import { rulesVersion, thresholds } from "./rules.config.js";
+import { FeedEntry } from "../../models/feedEntry.js";
+import { getLastFeedSyncTime } from "../feeds/syncService.js";
 
 export interface AnalyseUrlOptions extends RunRulesOptions {
   scanId?: string;
   createdAt?: string;
+  feedChecked?: boolean;
   feedLastUpdated?: string | null;
 }
 
@@ -72,6 +76,37 @@ function calculateAssessment(findingResults: FindingResult[]): {
 }
 
 /**
+ * Queries local MongoDB FeedEntry collection for an exact URL or host match.
+ */
+export async function queryFeedMatch(
+  urlTarget: string,
+  hostTarget: string
+): Promise<{ match: boolean; source?: string; target?: string } | null> {
+  if (mongoose.connection.readyState !== 1) {
+    return null;
+  }
+
+  try {
+    const matchDoc = await FeedEntry.findOne({
+      target: { $in: [urlTarget.toLowerCase(), hostTarget.toLowerCase()] },
+      active: true,
+    }).exec();
+
+    if (matchDoc) {
+      return {
+        match: true,
+        source: matchDoc.source,
+        target: matchDoc.target,
+      };
+    }
+  } catch {
+    // Database query failure should never abort scanning
+  }
+
+  return null;
+}
+
+/**
  * Analyzes a URL string, runs deterministic detection rules, and returns a validated Report.
  */
 export function analyseUrl(
@@ -99,12 +134,19 @@ export function analyseUrl(
     ...(f.recommendation ? { recommendation: f.recommendation } : {}),
   }));
 
+  let feedLimitation: string;
+  if (options?.feedChecked || options?.feedLastUpdated !== undefined) {
+    feedLimitation = options?.feedLastUpdated
+      ? `Reputation checked against locally stored threat intelligence feeds (last updated: ${options.feedLastUpdated})`
+      : "Reputation checked against locally stored threat intelligence feeds (no sync recorded)";
+  } else {
+    feedLimitation = "Reputation feeds not consulted";
+  }
+
   const limitations = [
     "Link not visited",
     "Page content not analysed",
-    options?.feedLastUpdated
-      ? `Reputation checked against locally stored threat intelligence feeds (last updated: ${options.feedLastUpdated})`
-      : "Reputation feeds not consulted",
+    feedLimitation,
   ];
 
   const reportData = {
@@ -133,4 +175,35 @@ export function analyseUrl(
     report,
     normalised,
   };
+}
+
+/**
+ * Async URL analysis that queries local MongoDB FeedEntry collection and sync metadata.
+ */
+export async function analyseUrlAsync(
+  rawUrl: string,
+  options?: AnalyseUrlOptions
+): Promise<UrlServiceResult> {
+  const normalised = normaliseUrl(rawUrl);
+
+  let feedMatch = options?.feedMatch;
+  let feedLastUpdated = options?.feedLastUpdated;
+
+  if (feedMatch === undefined && mongoose.connection.readyState === 1) {
+    const match = await queryFeedMatch(normalised.original, normalised.host);
+    if (match) {
+      feedMatch = match;
+    }
+  }
+
+  if (feedLastUpdated === undefined && mongoose.connection.readyState === 1) {
+    feedLastUpdated = await getLastFeedSyncTime();
+  }
+
+  return analyseUrl(rawUrl, {
+    ...options,
+    feedChecked: true,
+    feedMatch,
+    feedLastUpdated,
+  });
 }

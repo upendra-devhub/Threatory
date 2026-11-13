@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import { UrlScanRequest } from "@threatory/contracts";
 import { AppError, validateWithZod } from "../middleware/errors.js";
 import { scanRepository } from "../repositories/scanRepository.js";
-import { analyseUrl } from "../modules/url/service.js";
+import { analyseUrlAsync } from "../modules/url/service.js";
 
 export const scansRouter = Router();
 
@@ -17,7 +17,7 @@ scansRouter.post(
       }
 
       const body = validateWithZod(UrlScanRequest, req.body);
-      const { report } = analyseUrl(body.url);
+      const { report } = await analyseUrlAsync(body.url);
 
       const savedReport = await scanRepository.create({
         scanId: report.scanId,
