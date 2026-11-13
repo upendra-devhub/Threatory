@@ -17,11 +17,18 @@ export function ConsentCheckbox({
   const errorId = "consent-field-error";
 
   return (
-    <div className="space-y-2 rounded-lg border border-border bg-card p-4">
+    <div
+      className={cn(
+        "space-y-2 rounded-lg border p-4 transition-colors",
+        error ? "border-destructive/60 bg-destructive/5" : "border-border bg-card"
+      )}
+      data-testid="privacy-consent-container"
+    >
       <div className="flex items-start gap-3">
         <input
           type="checkbox"
           id="privacy-consent"
+          data-testid="privacy-consent-checkbox"
           disabled={disabled}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorId : undefined}
@@ -41,6 +48,7 @@ export function ConsentCheckbox({
       {error && (
         <p
           id={errorId}
+          data-testid="consent-error-message"
           className="text-xs font-medium text-destructive pl-7"
           role="alert"
         >

@@ -1,10 +1,10 @@
 import React from "react";
-import { Info, AlertTriangle, Shield } from "lucide-react";
+import { AlertTriangle, Shield, CheckCircle2, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function PrivacyScopeNotice() {
   return (
-    <Card className="border-border bg-muted/40">
+    <Card className="border-border bg-muted/40 shadow-xs" data-testid="privacy-scope-notice">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -13,40 +13,57 @@ export function PrivacyScopeNotice() {
           </CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+      <CardContent className="space-y-4 text-xs sm:text-sm text-muted-foreground leading-relaxed">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="rounded-md border border-border/60 bg-background/60 p-3 space-y-1">
-            <span className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
-              <Info className="h-3.5 w-3.5 text-sky-600" aria-hidden="true" />
-              What Threatory does:
+          {/* What Threatory does */}
+          <div className="rounded-md border border-border/80 bg-background/80 p-3.5 space-y-2">
+            <span className="font-semibold text-foreground flex items-center gap-1.5 text-xs sm:text-sm">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" aria-hidden="true" />
+              What Threatory analyses:
             </span>
-            <ul className="list-disc pl-4 space-y-1 text-xs">
-              <li>Analyses <strong>only</strong> the profile handles and text explicitly supplied here.</li>
-              <li>Detects structural patterns like username reuse, birth years, and exposed credentials.</li>
-              <li>Masks all sensitive entities before saving or presenting the security report.</li>
+            <ul className="list-disc pl-4 space-y-1.5 text-xs">
+              <li>
+                <strong>Only information explicitly supplied:</strong> Evaluates only the handles, profile entries, and text you submit in this form.
+              </li>
+              <li>
+                <strong>Local structural analysis:</strong> Identifies pattern signals such as username reuse across services, birth year suffixes, and exposed contact information.
+              </li>
+              <li>
+                <strong>Automatic masking:</strong> Sanitizes and masks all sensitive entities (emails, phones, secret keys, payment cards, usernames) in reports and storage.
+              </li>
             </ul>
           </div>
 
-          <div className="rounded-md border border-border/60 bg-background/60 p-3 space-y-1">
-            <span className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
-              <Info className="h-3.5 w-3.5 text-amber-600" aria-hidden="true" />
+          {/* What Threatory does not do */}
+          <div className="rounded-md border border-border/80 bg-background/80 p-3.5 space-y-2">
+            <span className="font-semibold text-foreground flex items-center gap-1.5 text-xs sm:text-sm">
+              <XCircle className="h-4 w-4 text-amber-600 shrink-0" aria-hidden="true" />
               What Threatory does NOT do:
             </span>
-            <ul className="list-disc pl-4 space-y-1 text-xs">
-              <li>Does not search the internet or query social media platforms.</li>
-              <li>Does not visit, crawl, or fetch submitted profile URLs.</li>
-              <li>Does not verify real-world identity or account ownership.</li>
-              <li>Does not search data breach databases or external sources.</li>
+            <ul className="list-disc pl-4 space-y-1.5 text-xs">
+              <li>
+                <strong>No internet-wide search:</strong> Does not search external social media platforms, websites, or directories for your accounts.
+              </li>
+              <li>
+                <strong>No profile page visits:</strong> Profile URLs are parsed strictly as offline text; Threatory never visits, crawls, or contacts remote profiles.
+              </li>
+              <li>
+                <strong>No identity verification:</strong> Does not verify account ownership, confirm real-world personhood, or link individuals.
+              </li>
+              <li>
+                <strong>No breach database lookup:</strong> Does not consult third-party breach databases or leak repositories.
+              </li>
             </ul>
           </div>
         </div>
 
-        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/70 p-3 text-amber-950 text-xs">
+        {/* Submission guidelines and warning */}
+        <div className="flex items-start gap-2.5 rounded-md border border-amber-300 bg-amber-50/80 p-3.5 text-amber-950 text-xs">
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" aria-hidden="true" />
-          <div className="space-y-0.5">
-            <span className="font-semibold">Important Submission Safety Guidelines:</span>
+          <div className="space-y-1">
+            <span className="font-semibold text-amber-900">Submission Safety Guidelines:</span>
             <p>
-              Submit only information you are authorized to process. <strong>Do not submit passwords, PINs, or government identification numbers.</strong> Threatory does not provide password storage or verification services.
+              Submit only information you are authorized to process. <strong>Do not enter passwords, PINs, or government identification numbers.</strong> Threatory does not provide password storage, password cracking, or password management features, and no password input field is provided on this platform.
             </p>
           </div>
         </div>
