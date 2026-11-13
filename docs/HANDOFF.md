@@ -1,38 +1,51 @@
 # HANDOFF
 
 ## Baton
-Current owner: Person B            Updated: 2026-11-13
+Current owner: Person A            Updated: 2026-11-13
 Status: READY
-Last completed: CP-06 (pending human gate and `cp-06-done` tag)
-Current checkpoint: CP-06 completed, next is CP-07
+Last completed: CP-07 (pending human gate and `cp-07-done` tag)
+Current checkpoint: CP-07 completed, next is CP-08
 Current branch: `main`
 
 ## Exact next step
-The next checkpoint is **CP-07 — Privacy Exposure Analyzer Backend**.
-- Person A takes the baton to implement the Privacy Analyzer backend module (`backend/src/modules/privacy/`) and `POST /api/scans/privacy` endpoint per Appendix B2 and CP-07 prompt.
-- Data refresh commands, threat feed synchronization, and evaluation numbers for the URL Analyzer are fully documented below and in `docs/data-sources.md` and `docs/evaluation-url.md`.
-- Golden inputs U1 through U8 can be used for end-to-end and regression testing across the entire URL analysis stack.
+The next checkpoint is **CP-08 — Privacy Exposure Analyzer Frontend**.
+- Person B takes the baton to implement the Privacy Analyzer frontend UI (`/privacy-analyzer`) connecting to the completed backend `POST /api/scans/privacy` endpoint.
+- Masked evidence representations and strict no-storage constraints must be preserved in UI rendering.
+- Golden inputs P1 through P4 can be used for end-to-end and regression testing across the privacy analysis flow.
 
-## Rules Engine Reference (CP-06)
-- **Rules Version:** `url-1.1.0`
-- **Configuration File Location:** `backend/src/modules/url/rules.config.ts`
-- **Active URL Rules (16 total):**
-  1. `URL_NO_HTTPS` (core, weight 15, severity medium, warn)
-  2. `URL_IP_HOST` (core, weight 30, severity high, fail)
-  3. `URL_USERINFO` (core, weight 25, severity high, fail)
-  4. `URL_ENCODED` (core, weight 10, severity low, warn)
-  5. `URL_REDIRECT_PARAM` (core, weight 10, severity low, warn)
-  6. `URL_HIGH_ENTROPY` (core, weight 10, severity low, warn)
-  7. `URL_ABUSED_TLD` (core, weight 8, severity low, warn)
-  8. `URL_EXCESS_SUBDOMAINS` (core, weight 8, severity low, warn)
-  9. `URL_NONSTANDARD_PORT` (core, weight 8, severity low, warn)
-  10. `URL_KEYWORDS` (core, weight 5, severity low, warn)
-  11. `URL_LONG` (core, weight 5, severity low, warn)
-  12. `URL_LOOKALIKE` (advanced, weight 30, severity high, fail)
-  13. `URL_HOMOGRAPH` (advanced, weight 30, severity high, fail)
-  14. `URL_BRAND_SUBDOMAIN` (advanced, weight 25, severity medium, warn)
-  15. `URL_SHORTENER` (advanced, weight 15, severity medium, warn)
-  16. `URL_FEED_MATCH` (advanced, weight 100, severity high, fail, forces risk level to `high`)
+## Privacy Module Reference (CP-07)
+- **Rules Version:** `privacy-1.0.0`
+- **Module Location:** `backend/src/modules/privacy/`
+  - `normalise.ts`: Input normalization, consent verification, local profile URL parsing, and display-name fragment extraction.
+  - `masking.ts`: Zero-leakage masking utilities for emails, phone numbers, tokens, cards, and usernames.
+  - `rules.config.ts`: Centralized rule metadata and configuration descriptors for all 9 privacy rules.
+  - `rules.ts`: Deterministic detection engine executing all 9 exposure rules with local validation (Luhn algorithm, `validator.isEmail`, `libphonenumber-js`).
+  - `service.ts`: Privacy report generation, assessment without numeric score, safe target summary, and mandatory privacy limitations.
+  - `index.ts`: Public module exports.
+
+### Active Privacy Finding Codes (9 total)
+1. `PRIV_USERNAME_REUSE` (identity, low/medium, warn): The same username was supplied across 2 (low) or 3+ (medium) profiles.
+2. `PRIV_USERNAME_SIMILAR` (identity, low, warn): Distinct usernames with edit distance 1 and length >= 5.
+3. `PRIV_URL_USERNAME_MISMATCH` (identity, low, warn): Typed username differs from supported profile URL username (GitHub, X/Twitter, Instagram, LinkedIn `/in/`, Reddit `/user/`).
+4. `PRIV_USERNAME_PERSONAL_HINT` (identity, low, warn): Username contains display-name fragment (>= 4 chars) or plausible birth year suffix (1940-2026).
+5. `PRIV_EMAIL_FOUND` (contact, medium, warn): Valid email detected in submitted text via `validator.isEmail`.
+6. `PRIV_USERNAME_MATCHES_EMAIL` (correlation, medium, warn): Normalised username matches normalised local part of detected email.
+7. `PRIV_PHONE_FOUND` (contact, medium, warn): Valid phone number detected in submitted text via `libphonenumber-js` (excluding payment card spans).
+8. `PRIV_SECRET_FOUND` (credentials, high, fail): Exposed AWS key (`AKIA`), GitHub token (`gh[pousr]_`), Slack token (`xox[baprs]-`), Google API key (`AIza`), private key block, or JWT pattern. Mandatory recommendation: revoke and rotate.
+9. `PRIV_CARD_FOUND` (financial, high, fail): 13-19 digits passing the Luhn algorithm checksum.
+
+### Masking Formats
+- **Email:** Revealing at most the first character of the local part: `j***@example.com`.
+- **Phone:** Revealing only the final two digits: `+1 *** *** **53`.
+- **Token:** Type prefix and first 4 characters: `AWS key: AKIA********`, `GitHub token: ghp_********`, `Slack token: xoxb********`, `Google API key: AIza********`, `Private key: [REDACTED PRIVATE KEY BLOCK]`, `JWT: eyJh********`.
+- **Card:** Revealing only the final 4 digits: `**** **** **** 1111`.
+- **Username:** Boundary characters only: `J***e`.
+
+### Stored-Data & Retention Rules
+- **Absolute No-Storage Rule:** Raw privacy input (`submittedText`, unmasked usernames, display names, raw emails, phones, tokens, card numbers) is **never** stored, logged, or returned.
+- **Database Schema Guarantee:** `submittedText` does **not** exist as a field in stored MongoDB documents (`Scan` collection).
+- **Retention:** Privacy scan reports expire after 7 days (`expiresAt = createdAt + 7 days`).
+- **Zero Network:** Scan evaluation performs zero outbound HTTP/HTTPS or DNS requests; all URL parsing and validations are local.
 
 ## How to run (keep accurate)
 Node version: 22 (per `.nvmrc`; verified locally on Node `v22.23.4`)
@@ -50,33 +63,10 @@ Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
 ### Data Refresh and Evaluation Commands (CP-06)
 - Download / refresh Tranco Top 10,000 domains:
   `npm run data:tranco -w backend`
-  Downloads `https://tranco-list.eu/top-1m.csv.zip`, extracts top 10,000 unique registrable domains to `backend/data/top-domains.txt`, and generates test fixture `backend/tests/fixtures/top-domains-200.txt`.
 - Manual threat feed synchronization:
   `npm run feeds:sync -w backend`
-  Fetches OpenPhish (`https://openphish.com/feed.txt`) and URLhaus (`https://urlhaus-api.abuse.ch/v2/...`), parses URL lines and hosts, and idempotently upserts entries into MongoDB `FeedEntry` collection.
 - Evaluation run:
   `npm run eval:url -w backend`
-  Evaluates engine accuracy across benign (`backend/data/eval/benign.txt`) and phishing (`backend/data/eval/phishing.txt`) samples, generates `docs/evaluation-url.md`, and confirms false-positive rate is strictly `< 5%`.
-
-## URL Analyzer Evaluation Results (CP-06)
-- **Benign Sample Size:** 105 real-world URLs from Tranco top sites with deep paths and query parameters.
-- **Phishing Sample Size:** 102 representative phishing URLs with diverse indicators.
-- **False Positive Rate (FPR):** **0.00%** (0 false alarms out of 105 benign URLs; meets $< 5.0\%$ target).
-- **Detection Rate (TPR / Recall):** **33.33%** (pure offline heuristic rules on structural indicators; increases to 100% on feed matches).
-- **Precision:** **100.00%** (all positive alerts corresponded to actual phishing indicators).
-- **Full Report:** See `docs/evaluation-url.md`.
-
-## Data Sources and Feed Licences (CP-06)
-Full licence records and ingestion specifications are documented in `docs/data-sources.md`:
-1. **Tranco:** Open scientific research dataset (MIT / CC BY 4.0). Top 10,000 registrable domains stored locally in `backend/data/top-domains.txt`.
-2. **OpenPhish Community Feed:** Community Edition free for non-commercial evaluation and research. Commercial redistribution requires subscription. Copyright OpenPhish.
-3. **URLhaus (abuse.ch):** Creative Commons CC0 1.0 Universal (Public Domain Dedication). Keyless downloads retired; requires free account Auth-Key for automated API export access.
-
-## API configuration
-- Server-side environment variable: `API_ORIGIN` (documented in `frontend/.env.example`, default `http://localhost:4000`). Not exposed via `NEXT_PUBLIC_`.
-- Next.js rewrite in `frontend/next.config.ts`: rewrites `/api/:path*` to `${API_ORIGIN}/api/:path*` (preserving path and query parameters so the signed HttpOnly `tid` cookie stays first-party).
-- Browser API client (`frontend/src/lib/api-client.ts`): calls relative `/api/...` paths only with `credentials: "include"` and timeout abort handling, validates report envelopes against `ApiSuccess(Report)` and errors against `ApiError`, and validates `GET /api/health` against `{ status: "ok", timestamp }`.
-- Endpoint `POST /api/scans/url`: validates request payload against `UrlScanRequest`, runs `analyseUrlAsync` (checking local `FeedEntry` and `FeedSyncMeta`), stores report with anonymous owner cookie / `DEV_OWNER_ID` with 30-day `expiresAt` TTL, and returns HTTP 201 with `{ success: true, data: report }`.
 
 ## Checkpoint log
 | CP | Owner | Finished | Tag | Notes |
@@ -86,7 +76,8 @@ Full licence records and ingestion specifications are documented in `docs/data-s
 | CP-03 | Person A | 2026-11-11 | `cp-03-done` | Next.js 15 App Router shell, light design system, `/api/:path*` rewrite, typed Zod-validated API client, TanStack Query provider, shared report components, `/reports/[scanId]` saved-report page, `ApiStatusIndicator`, Vitest/RTL/`vitest-axe` tests |
 | CP-04 | Person A | 2026-11-12 | `cp-04-done` | URL normaliser (`WHATWG URL` + `tldts`), 11 core detection rules (`url-1.0.0`), weighted scoring engine, `POST /api/scans/url` endpoint with 30-day TTL persistence, zero-network isolation tests, golden inputs U1 to U4 |
 | CP-05 | Person A | 2026-11-13 | `cp-05-done` | URL Analyzer screen (`/url-analyzer`), React Hook Form + `UrlScanRequest`, `useUrlScan` mutation hook, `URLDetailsCard`, strict plain-text URL rendering, `ErrorState` with retry, Playwright E2E infrastructure with in-memory MongoDB server, vitest-axe accessibility |
-| CP-06 | Person B | 2026-11-13 | `cp-06-done` (human to apply) | URL advanced detection (`URL_LOOKALIKE`, `URL_HOMOGRAPH`, `URL_BRAND_SUBDOMAIN`, `URL_SHORTENER`, `URL_FEED_MATCH`), Tranco 10k dataset (`top-domains.txt`), OpenPhish & URLhaus sync, node-cron scheduler (`FEEDS_SYNC_ENABLED`), evaluation framework (`docs/evaluation-url.md`, 0.00% FPR), bumped to `url-1.1.0` |
+| CP-06 | Person B | 2026-11-13 | `cp-06-done` | URL advanced detection (`URL_LOOKALIKE`, `URL_HOMOGRAPH`, `URL_BRAND_SUBDOMAIN`, `URL_SHORTENER`, `URL_FEED_MATCH`), Tranco 10k dataset (`top-domains.txt`), OpenPhish & URLhaus sync, node-cron scheduler (`FEEDS_SYNC_ENABLED`), evaluation framework (`docs/evaluation-url.md`, 0.00% FPR), bumped to `url-1.1.0` |
+| CP-07 | Person A | 2026-11-13 | `cp-07-done` (human to apply) | Privacy Exposure Analyzer engine & endpoint (`POST /api/scans/privacy`), local profile URL parsing, 9 detection rules (`privacy-1.0.0`), sensitive value masking, zero raw storage (`submittedText` never persisted), 7-day TTL retention, golden inputs P1-P4, comprehensive privacy leakage test |
 
 ## Decisions
 1. `main` was created after CP-01 at `cp-01-done` (`c9a832c`) because the pre-CP-01 setup step existed only in the PDF. History unchanged.
@@ -114,6 +105,10 @@ Full licence records and ingestion specifications are documented in `docs/data-s
 23. In `checkLookalike`, authoritative domains present in the top-10,000 list are short-circuited as legitimate (distance 0 is not triggered) to protect authentic top sites from false positives. Length-difference pruning ($|L_1 - L_2| > \text{maxDist}$) guarantees sub-millisecond execution over 10,000 reference domains.
 24. In `checkHomograph`, Unicode script categorization is performed using standard ES Unicode property escapes (`\p{Script=...}/u`) on the `domainToUnicode`-decoded labels to detect multi-script spoofing in addition to punycode (`xn--`) labels.
 25. In `syncService.ts`, network requests enforce a 10MB payload size limit and 15-second timeout. Any network failure or HTTP error is caught, logged via `pino`, and recorded in `FeedSyncMeta` without throwing unhandled exceptions or affecting scan operations.
+26. In CP-07, worked directly on `main` per prompt instructions with 6 task commits.
+27. In CP-07, Privacy Analyzer computes `riskLevel` as the highest severity among triggered findings with score omitted per Appendix B2 and contracts; label is `"No exposure patterns detected"` or `"${N} exposure signals found"`.
+28. In CP-07, payment card spans passing Luhn validation are mutually excluded from phone number detection in `findPhoneNumbersInText` to eliminate false-positive phone detections on credit card strings.
+29. In CP-07, mandatory explicit consent (`consent === true`) is validated up front before any processing; missing or false consent immediately returns 400 `VALIDATION_ERROR` with field `consent`.
 
 ## Contract changes
 None. Schemas implemented strictly per Appendix A and Appendix C; no changes to `packages/contracts` were required.
@@ -128,11 +123,13 @@ None. Schemas implemented strictly per Appendix A and Appendix C; no changes to 
 - `@types/node` (^22.9.0, MIT): Node.js type definitions.
 - `tsx` (^4.23.15, MIT): Added in CP-05 to execute the test-only backend E2E server (`backend/tests/e2e-server.ts`) with zero-config TypeScript compilation.
 
-### Backend dependencies (CP-02, CP-04, CP-06)
+### Backend dependencies (CP-02, CP-04, CP-06, CP-07)
 - `express` (^4.21.1, MIT), `helmet` (^8.0.0, MIT), `cors` (^2.8.5, MIT), `express-rate-limit` (^7.4.1, MIT), `pino` (^9.5.0, MIT), `pino-http` (^10.3.0, MIT), `cookie-parser` (^1.4.7, MIT), `mongoose` (^8.8.1, MIT), `dotenv` (^16.4.5, BSD-2-Clause), `zod` (^3.23.8, MIT), `supertest` (^7.0.0, MIT), `mongodb-memory-server` (^10.1.2, MIT), and `@types/*` (`MIT`).
 - `tldts` (^6.1.86, MIT): Added in CP-04 to accurately extract registrable domains, ICANN public suffixes, and identify IP hosts for the URL analyzer engine without external network dependencies.
-- `fastest-levenshtein` (^1.0.16, MIT): Added in CP-06 for high-performance Levenshtein distance calculations in `URL_LOOKALIKE` typosquatting detection.
+- `fastest-levenshtein` (^1.0.16, MIT): Added in CP-06 for high-performance Levenshtein distance calculations in `URL_LOOKALIKE` typosquatting detection and reused in CP-07 for `PRIV_USERNAME_SIMILAR`.
 - `node-cron` (^3.0.3, ISC) & `@types/node-cron` (^3.0.11, MIT): Added in CP-06 for scheduled daily threat feed synchronization.
+- `validator` (^13.15.35, MIT) & `@types/validator` (^13.15.10, MIT): Added in CP-07 for RFC-compliant email address validation in `PRIV_EMAIL_FOUND`.
+- `libphonenumber-js` (^1.13.16, MIT): Added in CP-07 for international phone number extraction and validation in `PRIV_PHONE_FOUND`.
 
 ### Frontend dependencies (CP-03 & CP-05)
 - `next` (`15.5.29`, MIT): Next.js App Router framework and `/api` rewrite proxy.
@@ -150,12 +147,12 @@ None. Schemas implemented strictly per Appendix A and Appendix C; no changes to 
 - `@playwright/test` (^1.49.1, Apache-2.0): Cross-browser end-to-end test framework orchestrating isolated test environments and full user journeys.
 
 ## Known issues
-1. `npm audit` reports vulnerabilities and `eslint@9.39.5` is flagged deprecated; not addressed in CP-02/CP-03/CP-04/CP-05/CP-06. Do not run `npm audit fix --force`.
+1. `npm audit` reports vulnerabilities and `eslint@9.39.5` is flagged deprecated; not addressed in CP-02/CP-03/CP-04/CP-05/CP-06/CP-07. Do not run `npm audit fix --force`.
 2. `next build` warns that `@next/eslint-plugin-next` is not configured in root `eslint.config.mjs` (deferred to avoid modifying root config outside scope).
 3. On Windows terminal environments, running backend tests in Standard Sandbox mode (without bypass) encounters `EACCES` on loopback `127.0.0.1` sockets (used by Supertest/Express and MongoMemoryServer); running tests with elevated network permissions allows full socket binding.
 
 ## Parking lot
-- Privacy Exposure Analyzer backend and frontend (`CP-07`, `CP-08`).
+- Privacy Exposure Analyzer frontend form and submission interaction (`CP-08`).
 - Website Security Auditor backend and frontend (`CP-09`, `CP-10`).
 - History pagination/filtering, report deletion UI, and dashboard summary with Recharts (`CP-11`).
 - Dark mode toggle or theme customizer.
