@@ -12,6 +12,13 @@ export const envSchema = z
     COOKIE_SECRET: z.string().min(1, "COOKIE_SECRET is required"),
     DEV_OWNER_ID: z.string().optional(),
     TRUST_PROXY: z.string().optional(),
+    FEEDS_SYNC_ENABLED: z.preprocess((val) => {
+      if (typeof val === "string") return val.toLowerCase() === "true" || val === "1";
+      return Boolean(val);
+    }, z.boolean()).default(false),
+    OPENPHISH_FEED_URL: z.string().url().default("https://openphish.com/feed.txt"),
+    URLHAUS_FEED_URL: z.string().url().optional(),
+    URLHAUS_AUTH_KEY: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (

@@ -2,6 +2,7 @@
 import { validateEnv } from "./config/env.js";
 import { connectDatabase, disconnectDatabase } from "./config/database.js";
 import { app } from "./app.js";
+import { startFeedScheduler, stopFeedScheduler } from "./modules/feeds/scheduler.js";
 
 export async function startServer(): Promise<void> {
   try {
@@ -11,11 +12,15 @@ export async function startServer(): Promise<void> {
     await connectDatabase();
     console.log("MongoDB connected successfully");
 
+    // Start daily feed synchronization scheduler if enabled
+    startFeedScheduler();
+
     const server = app.listen(env.PORT, () => {
       console.log(`Threatory backend listening on port ${env.PORT}`);
     });
 
     const shutdown = () => {
+      stopFeedScheduler();
       server.close(async () => {
         try {
           await disconnectDatabase();
