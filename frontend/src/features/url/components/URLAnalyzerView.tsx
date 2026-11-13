@@ -44,7 +44,7 @@ export function URLAnalyzerView({
 
       <Card>
         <CardHeader>
-          <CardTitle>Submit a URL for deterministic analysis</CardTitle>
+          <CardTitle as="h2">Submit a URL for deterministic analysis</CardTitle>
           <CardDescription>
             The submitted URL is analyzed purely as text. Threatory parses its structure and evaluates rule-based phishing indicators without visiting, fetching, or executing any remote content.
           </CardDescription>
