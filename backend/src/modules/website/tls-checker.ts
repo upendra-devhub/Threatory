@@ -399,6 +399,7 @@ export async function checkHttpToHttpsAndRedirects(
       policy,
       connectTimeoutMs,
       maxRedirects: 4,
+      allowCustomPort: Boolean(options.customHttpPort && options.customHttpPort !== 80),
     });
 
     // Check if final URL uses https:

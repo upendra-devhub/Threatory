@@ -57,7 +57,8 @@ export function defaultAddressPolicy(ipStr: string): boolean {
  */
 export function validateTargetUrl(
   rawUrl: string,
-  policy: AddressPolicy = defaultAddressPolicy
+  policy: AddressPolicy = defaultAddressPolicy,
+  allowCustomPort: boolean = false
 ): URL {
   if (!rawUrl || typeof rawUrl !== "string" || rawUrl.trim().length === 0) {
     throw new AppError("VALIDATION_ERROR", "URL must not be empty", [
@@ -91,14 +92,14 @@ export function validateTargetUrl(
     );
   }
 
-  // Port check: accept only ports 80 and 443
+  // Port check: accept only ports 80 and 443 unless allowCustomPort is explicitly true
   const port = parsed.port
     ? parseInt(parsed.port, 10)
     : parsed.protocol === "https:"
       ? 443
       : 80;
 
-  if (port !== 80 && port !== 443) {
+  if (!allowCustomPort && port !== 80 && port !== 443) {
     throw new AppError(
       "TARGET_BLOCKED",
       `Port ${port} is blocked. Only ports 80 and 443 are allowed.`
@@ -270,6 +271,7 @@ export interface GuardedFetchOptions {
   totalTimeoutMs?: number;
   maxRedirects?: number;
   headers?: Record<string, string>;
+  allowCustomPort?: boolean;
 }
 
 export interface GuardedFetchResponse {
@@ -300,8 +302,9 @@ export async function guardedFetch(
     const totalTimeoutMs = options.totalTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
     const maxRedirects = options.maxRedirects ?? MAX_REDIRECTS;
     const method = options.method ?? "GET";
+    const allowCustomPort = options.allowCustomPort ?? false;
 
-    let currentUrl = validateTargetUrl(rawUrl, policy);
+    let currentUrl = validateTargetUrl(rawUrl, policy, allowCustomPort);
     let redirectCount = 0;
     let lastIp: string | undefined;
 
@@ -397,7 +400,7 @@ export async function guardedFetch(
           }
 
           // Validate redirect destination with SSRF guard
-          currentUrl = validateTargetUrl(nextUrl.toString(), policy);
+          currentUrl = validateTargetUrl(nextUrl.toString(), policy, allowCustomPort);
           continue;
         }
 
