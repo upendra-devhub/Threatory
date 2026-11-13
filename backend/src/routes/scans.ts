@@ -3,6 +3,7 @@ import { UrlScanRequest } from "@threatory/contracts";
 import { AppError, validateWithZod } from "../middleware/errors.js";
 import { scanRepository } from "../repositories/scanRepository.js";
 import { analyseUrlAsync } from "../modules/url/service.js";
+import { analysePrivacy } from "../modules/privacy/service.js";
 
 export const scansRouter = Router();
 
@@ -34,6 +35,42 @@ scansRouter.post(
       });
 
       res.status(201).json({
+        success: true,
+        data: savedReport,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// POST /api/scans/privacy
+scansRouter.post(
+  "/privacy",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const ownerId = req.ownerId;
+      if (!ownerId) {
+        throw new AppError("INTERNAL", "Missing owner identification");
+      }
+
+      const { report } = analysePrivacy(req.body);
+
+      const savedReport = await scanRepository.create({
+        scanId: report.scanId,
+        ownerId,
+        module: "privacy",
+        status: report.status,
+        rulesVersion: report.rulesVersion,
+        targetSummary: report.targetSummary,
+        assessment: report.assessment,
+        findings: report.findings,
+        limitations: report.limitations,
+        details: report.details,
+        createdAt: report.createdAt,
+      });
+
+      res.status(200).json({
         success: true,
         data: savedReport,
       });
