@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function PrivacyScopeNotice() {
   return (
-    <Card className="border-border bg-muted/40 shadow-xs" data-testid="privacy-scope-notice">
+    <section aria-label="Privacy analysis scope notice">
+      <Card className="border-border bg-muted/40 shadow-xs" data-testid="privacy-scope-notice">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -69,5 +70,6 @@ export function PrivacyScopeNotice() {
         </div>
       </CardContent>
     </Card>
+    </section>
   );
 }

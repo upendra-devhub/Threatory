@@ -212,6 +212,7 @@ export function PrivacyScanForm({
           </label>
           <div
             id="privacy-text-counter"
+            data-testid="char-counter"
             aria-live="polite"
             className={`text-xs font-medium ${
               isOverCharLimit ? "text-destructive" : "text-muted-foreground"
