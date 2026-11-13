@@ -74,6 +74,48 @@ describe("URL Analysis Service (analyseUrl)", () => {
         expect(appErr.fields?.[0]?.path).toBe("url");
       }
     });
+
+    it("U5: https://paypa1.com/login produces URL_LOOKALIKE fail", () => {
+      const { report } = analyseUrl("https://paypa1.com/login");
+
+      expect(() => Report.parse(report)).not.toThrow();
+      const lookalike = report.findings.find((f) => f.code === "URL_LOOKALIKE");
+      expect(lookalike?.outcome).toBe("fail");
+      expect(lookalike?.severity).toBe("high");
+    });
+
+    it("U6: https://xn--pple-43d.com/ produces URL_HOMOGRAPH fail", () => {
+      const { report } = analyseUrl("https://xn--pple-43d.com/");
+
+      expect(() => Report.parse(report)).not.toThrow();
+      const homograph = report.findings.find((f) => f.code === "URL_HOMOGRAPH");
+      expect(homograph?.outcome).toBe("fail");
+      expect(homograph?.severity).toBe("high");
+    });
+
+    it("U7: https://bit.ly/abc123 produces URL_SHORTENER warn", () => {
+      const { report } = analyseUrl("https://bit.ly/abc123");
+
+      expect(() => Report.parse(report)).not.toThrow();
+      const shortener = report.findings.find((f) => f.code === "URL_SHORTENER");
+      expect(shortener?.outcome).toBe("warn");
+      expect(shortener?.severity).toBe("medium");
+    });
+
+    it("U8: https://paypal.com.account-verify.xyz/login produces URL_BRAND_SUBDOMAIN warn, URL_ABUSED_TLD warn, URL_KEYWORDS warn", () => {
+      const { report } = analyseUrl("https://paypal.com.account-verify.xyz/login");
+
+      expect(() => Report.parse(report)).not.toThrow();
+      const brandSub = report.findings.find((f) => f.code === "URL_BRAND_SUBDOMAIN");
+      expect(brandSub?.outcome).toBe("warn");
+      expect(brandSub?.severity).toBe("medium");
+
+      const abusedTld = report.findings.find((f) => f.code === "URL_ABUSED_TLD");
+      expect(abusedTld?.outcome).toBe("warn");
+
+      const keywords = report.findings.find((f) => f.code === "URL_KEYWORDS");
+      expect(keywords?.outcome).toBe("warn");
+    });
   });
 
   describe("Limitations and Details", () => {

@@ -1,8 +1,13 @@
+import { domainToUnicode } from "node:url";
+import { distance } from "fastest-levenshtein";
 import { NormalisedUrl } from "./normalise.js";
 import {
   coreRuleConfigs,
+  advancedRuleConfigs,
   thresholds,
   lists,
+  loadTopDomains,
+  loadShorteners,
 } from "./rules.config.js";
 
 export interface FindingResult {
@@ -550,5 +555,390 @@ export function runCoreRules(normalised: NormalisedUrl): FindingResult[] {
     checkNonstandardPort(normalised),
     checkKeywords(normalised),
     checkLongUrl(normalised),
+  ];
+}
+
+export function checkLookalike(
+  normalised: NormalisedUrl,
+  customTopDomains?: string[]
+): FindingResult {
+  const config = advancedRuleConfigs.URL_LOOKALIKE;
+
+  if (normalised.isIpHost || !normalised.registrableDomain) {
+    return {
+      code: config.code,
+      category: config.category,
+      title: config.title,
+      outcome: "pass",
+      severity: "info",
+      evidence: "Host is not a registrable domain susceptible to lookalike typosquatting",
+      explanation: "Typosquatting analysis applies to registered domain names.",
+      weight: 0,
+      triggered: false,
+    };
+  }
+
+  const { list: topDomainsList, set: topDomainsSet } = loadTopDomains();
+  const domainsList = customTopDomains || topDomainsList;
+  const domainSet = customTopDomains ? new Set(customTopDomains) : topDomainsSet;
+
+  const targetDomain = normalised.registrableDomain.toLowerCase();
+
+  // If the domain is an exact match in the top domains list, it is legitimate
+  if (domainSet.has(targetDomain)) {
+    return {
+      code: config.code,
+      category: config.category,
+      title: config.title,
+      outcome: "pass",
+      severity: "info",
+      evidence: `Registrable domain '${targetDomain}' is an authoritative top-ranked domain`,
+      explanation: "Domain matches an authoritative top-ranked domain entry.",
+      weight: 0,
+      triggered: false,
+    };
+  }
+
+  // Names under 5 characters use distance 1, otherwise distance 1 or 2
+  const maxAllowedDist = targetDomain.length < 5 ? 1 : 2;
+
+  let matchedDomain: string | null = null;
+  let minDistance = 999;
+
+  for (const refDomain of domainsList) {
+    if (Math.abs(refDomain.length - targetDomain.length) > maxAllowedDist) {
+      continue;
+    }
+    const d = distance(targetDomain, refDomain);
+    if (d > 0 && d <= maxAllowedDist) {
+      matchedDomain = refDomain;
+      minDistance = d;
+      break;
+    }
+  }
+
+  if (matchedDomain) {
+    return {
+      code: config.code,
+      category: config.category,
+      title: config.title,
+      outcome: config.triggeredOutcome,
+      severity: config.triggeredSeverity,
+      evidence: `Registrable domain '${targetDomain}' is within edit distance ${minDistance} of top domain '${matchedDomain}'`,
+      explanation:
+        "Attackers register lookalike domains closely resembling well-known websites to deceive victims into entering credentials.",
+      recommendation:
+        "Verify domain spelling and navigate using known bookmarks or official search rather than following unsolicited links.",
+      weight: config.weight,
+      triggered: true,
+    };
+  }
+
+  return {
+    code: config.code,
+    category: config.category,
+    title: config.title,
+    outcome: "pass",
+    severity: "info",
+    evidence: `Registrable domain '${targetDomain}' does not resemble any top-ranked domains within edit distance ${maxAllowedDist}`,
+    explanation: "Domain does not closely match top-ranked reference domains.",
+    weight: 0,
+    triggered: false,
+  };
+}
+
+export function checkHomograph(normalised: NormalisedUrl): FindingResult {
+  const config = advancedRuleConfigs.URL_HOMOGRAPH;
+
+  if (normalised.isIpHost) {
+    return {
+      code: config.code,
+      category: config.category,
+      title: config.title,
+      outcome: "pass",
+      severity: "info",
+      evidence: "Host is an IP address literal; homograph analysis not applicable",
+      explanation: "Homograph analysis applies to domain name labels.",
+      weight: 0,
+      triggered: false,
+    };
+  }
+
+  const rawLabels = normalised.host.toLowerCase().split(".");
+  let punycodeLabel: string | null = null;
+  let mixedScriptLabel: string | null = null;
+  let detectedScripts: string[] = [];
+
+  const scriptRegexes: { name: string; regex: RegExp }[] = [
+    { name: "Latin", regex: /\p{Script=Latin}/u },
+    { name: "Cyrillic", regex: /\p{Script=Cyrillic}/u },
+    { name: "Greek", regex: /\p{Script=Greek}/u },
+    { name: "Hebrew", regex: /\p{Script=Hebrew}/u },
+    { name: "Arabic", regex: /\p{Script=Arabic}/u },
+    { name: "Devanagari", regex: /\p{Script=Devanagari}/u },
+    { name: "Han", regex: /\p{Script=Han}/u },
+    { name: "Hiragana", regex: /\p{Script=Hiragana}/u },
+    { name: "Katakana", regex: /\p{Script=Katakana}/u },
+    { name: "Hangul", regex: /\p{Script=Hangul}/u },
+  ];
+
+  for (const label of rawLabels) {
+    if (label.startsWith("xn--")) {
+      punycodeLabel = label;
+      break;
+    }
+
+    const unicodeLabel = domainToUnicode(label);
+    const scriptsFound = scriptRegexes
+      .filter((s) => s.regex.test(unicodeLabel))
+      .map((s) => s.name);
+
+    if (scriptsFound.length > 1) {
+      mixedScriptLabel = unicodeLabel;
+      detectedScripts = scriptsFound;
+      break;
+    }
+  }
+
+  if (punycodeLabel) {
+    const decoded = domainToUnicode(punycodeLabel);
+    return {
+      code: config.code,
+      category: config.category,
+      title: config.title,
+      outcome: config.triggeredOutcome,
+      severity: config.triggeredSeverity,
+      evidence: `Host label '${punycodeLabel}' uses punycode encoding (decodes to '${decoded}')`,
+      explanation:
+        "Punycode encoding is frequently leveraged in Internationalized Domain Name (IDN) homograph attacks to impersonate legitimate domains with visually identical glyphs.",
+      recommendation:
+        "Avoid entering credentials or sensitive data on punycode-encoded domain names.",
+      weight: config.weight,
+      triggered: true,
+    };
+  }
+
+  if (mixedScriptLabel) {
+    return {
+      code: config.code,
+      category: config.category,
+      title: config.title,
+      outcome: config.triggeredOutcome,
+      severity: config.triggeredSeverity,
+      evidence: `Host label '${mixedScriptLabel}' mixes multiple Unicode scripts (${detectedScripts.join(", ")})`,
+      explanation:
+        "Mixing characters from different writing systems (such as Latin and Cyrillic) is a classic homograph attack pattern designed to deceive human visual inspection.",
+      recommendation:
+        "Do not trust domain names combining characters across multiple writing systems.",
+      weight: config.weight,
+      triggered: true,
+    };
+  }
+
+  return {
+    code: config.code,
+    category: config.category,
+    title: config.title,
+    outcome: "pass",
+    severity: "info",
+    evidence: "Host labels use uniform character sets without punycode or mixed scripts",
+    explanation: "Domain labels do not exhibit homograph deception indicators.",
+    weight: 0,
+    triggered: false,
+  };
+}
+
+export function checkBrandSubdomain(normalised: NormalisedUrl): FindingResult {
+  const config = advancedRuleConfigs.URL_BRAND_SUBDOMAIN;
+
+  if (normalised.isIpHost || !normalised.registrableDomain) {
+    return {
+      code: config.code,
+      category: config.category,
+      title: config.title,
+      outcome: "pass",
+      severity: "info",
+      evidence: "Host is not a domain with subdomains; brand subdomain analysis not applicable",
+      explanation: "Brand subdomain analysis requires registered domain and subdomain hierarchy.",
+      weight: 0,
+      triggered: false,
+    };
+  }
+
+  const registrable = normalised.registrableDomain.toLowerCase();
+  const subdomains = normalised.subdomainLabels.map((s) => s.toLowerCase());
+  const subdomainJoined = subdomains.join(".");
+
+  // Split path into words
+  const pathWords = normalised.path
+    .toLowerCase()
+    .split(/[/._\-~&=?#+]+/)
+    .filter((w) => w.length >= 3);
+
+  let matchedBrand: string | null = null;
+
+  for (const brand of lists.targetBrands) {
+    // If the registrable domain belongs to or starts with the brand name, it is not unrelated
+    if (registrable === brand || registrable.startsWith(`${brand}.`)) {
+      continue;
+    }
+
+    // Check if brand appears as a subdomain label or in joined subdomain
+    const inSubdomain =
+      subdomains.includes(brand) ||
+      subdomainJoined.includes(`${brand}.`) ||
+      subdomainJoined.startsWith(brand) ||
+      subdomainJoined.endsWith(brand);
+
+    // Check if brand appears as an isolated path segment or word
+    const inPath = pathWords.includes(brand);
+
+    if (inSubdomain || inPath) {
+      matchedBrand = brand;
+      break;
+    }
+  }
+
+  if (matchedBrand) {
+    return {
+      code: config.code,
+      category: config.category,
+      title: config.title,
+      outcome: config.triggeredOutcome,
+      severity: config.triggeredSeverity,
+      evidence: `Target brand '${matchedBrand}' appears in subdomain or path of unrelated registrable domain '${registrable}'`,
+      explanation:
+        "Attackers frequently place well-known brand names into subdomains or paths to mislead users into believing they are visiting an official domain.",
+      recommendation:
+        `Verify the actual destination domain (${registrable}) rather than trusting brand names in subdomains or URL paths.`,
+      weight: config.weight,
+      triggered: true,
+    };
+  }
+
+  return {
+    code: config.code,
+    category: config.category,
+    title: config.title,
+    outcome: "pass",
+    severity: "info",
+    evidence: "No target brand impersonation observed in subdomains or path",
+    explanation: "Subdomain labels and path segments do not contain mismatched brand identifiers.",
+    weight: 0,
+    triggered: false,
+  };
+}
+
+export function checkShortener(normalised: NormalisedUrl): FindingResult {
+  const config = advancedRuleConfigs.URL_SHORTENER;
+  const shorteners = loadShorteners();
+
+  const hostLower = normalised.host.toLowerCase();
+  const registrableLower = normalised.registrableDomain?.toLowerCase();
+
+  const triggered =
+    shorteners.has(hostLower) ||
+    (Boolean(registrableLower) && shorteners.has(registrableLower!));
+
+  if (triggered) {
+    return {
+      code: config.code,
+      category: config.category,
+      title: config.title,
+      outcome: config.triggeredOutcome,
+      severity: config.triggeredSeverity,
+      evidence: `Host '${normalised.host}' is a known URL shortening service`,
+      explanation:
+        "URL shorteners conceal the true destination host and path, frequently used in phishing or spam campaigns to bypass domain reputation filters.",
+      recommendation:
+        "Expand and verify the destination URL before visiting or entering credentials.",
+      weight: config.weight,
+      triggered: true,
+    };
+  }
+
+  return {
+    code: config.code,
+    category: config.category,
+    title: config.title,
+    outcome: "pass",
+    severity: "info",
+    evidence: "Host is not a known URL shortening service",
+    explanation: "Host is not listed in the URL shortener registry.",
+    weight: 0,
+    triggered: false,
+  };
+}
+
+export function checkFeedMatch(
+  _normalised: NormalisedUrl,
+  feedMatch?: boolean | { match: boolean; source?: string; target?: string }
+): FindingResult {
+  const config = advancedRuleConfigs.URL_FEED_MATCH;
+
+  const isMatched =
+    typeof feedMatch === "boolean"
+      ? feedMatch
+      : Boolean(feedMatch && feedMatch.match);
+
+  if (isMatched) {
+    const details =
+      typeof feedMatch === "object" && feedMatch?.source
+        ? ` (source: ${feedMatch.source})`
+        : "";
+    return {
+      code: config.code,
+      category: config.category,
+      title: config.title,
+      outcome: config.triggeredOutcome,
+      severity: config.triggeredSeverity,
+      evidence: `URL or destination host matched malicious threat intelligence feed${details}`,
+      explanation:
+        "Destination URL or host is actively listed in threat intelligence feeds as confirmed phishing or malware distribution infrastructure.",
+      recommendation:
+        "Do not navigate to this destination. Block access to this URL across perimeter defenses immediately.",
+      weight: config.weight,
+      triggered: true,
+    };
+  }
+
+  return {
+    code: config.code,
+    category: config.category,
+    title: config.title,
+    outcome: "pass",
+    severity: "info",
+    evidence: "No match in locally stored threat intelligence feeds",
+    explanation: "URL and host were not found in local threat intelligence feeds.",
+    weight: 0,
+    triggered: false,
+  };
+}
+
+export interface RunRulesOptions {
+  feedMatch?: boolean | { match: boolean; source?: string; target?: string };
+  customTopDomains?: string[];
+}
+
+export function runAdvancedRules(
+  normalised: NormalisedUrl,
+  options?: RunRulesOptions
+): FindingResult[] {
+  return [
+    checkLookalike(normalised, options?.customTopDomains),
+    checkHomograph(normalised),
+    checkBrandSubdomain(normalised),
+    checkShortener(normalised),
+    checkFeedMatch(normalised, options?.feedMatch),
+  ];
+}
+
+export function runAllRules(
+  normalised: NormalisedUrl,
+  options?: RunRulesOptions
+): FindingResult[] {
+  return [
+    ...runCoreRules(normalised),
+    ...runAdvancedRules(normalised, options),
   ];
 }

@@ -48,7 +48,7 @@ describe("POST /api/scans/url Endpoint", () => {
     expect(report.assessment.score).toBe(50);
     expect(report.assessment.riskLevel).toBe("medium");
     expect(report.assessment.label).toBe("Medium");
-    expect(report.findings).toHaveLength(11);
+    expect(report.findings).toHaveLength(16);
 
     // Verify database persistence and 30-day TTL expiresAt
     const dbDoc = await Scan.findOne({ scanId: report.scanId }).exec();

@@ -1,7 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { Finding } from "@threatory/contracts";
 import { normaliseUrl } from "../src/modules/url/normalise.js";
-import { runCoreRules, shannonEntropy } from "../src/modules/url/rules.js";
+import {
+  runCoreRules,
+  runAllRules,
+  shannonEntropy,
+  checkLookalike,
+  checkHomograph,
+  checkBrandSubdomain,
+  checkShortener,
+} from "../src/modules/url/rules.js";
 
 describe("URL Core Rules Engine", () => {
   function getFinding(findings: ReturnType<typeof runCoreRules>, code: string) {
@@ -329,5 +337,126 @@ describe("URL Core Rules Engine", () => {
       "URL_KEYWORDS",
       "URL_LONG",
     ]);
+  });
+
+  describe("Rule: URL_LOOKALIKE (CP-06)", () => {
+    it("triggers fail (severity high, weight 30) for typosquatting lookalike (U5: paypa1.com)", () => {
+      const norm = normaliseUrl("https://paypa1.com/login");
+      const f = checkLookalike(norm);
+      expect(f.outcome).toBe("fail");
+      expect(f.severity).toBe("high");
+      expect(f.weight).toBe(30);
+      expect(f.evidence).toContain("paypal.com");
+      expect(f.recommendation).toBeDefined();
+      expect(() => Finding.parse(f)).not.toThrow();
+    });
+
+    it("passes for exact authoritative top domain (paypal.com)", () => {
+      const norm = normaliseUrl("https://paypal.com/login");
+      const f = checkLookalike(norm);
+      expect(f.outcome).toBe("pass");
+      expect(f.severity).toBe("info");
+      expect(f.weight).toBe(0);
+      expect(() => Finding.parse(f)).not.toThrow();
+    });
+
+    it("passes for standard benign domain not resembling top domains", () => {
+      const norm = normaliseUrl("https://example.com/");
+      const f = checkLookalike(norm);
+      expect(f.outcome).toBe("pass");
+      expect(f.severity).toBe("info");
+      expect(f.weight).toBe(0);
+    });
+
+    it("passes for IP addresses", () => {
+      const norm = normaliseUrl("http://198.51.100.23/login");
+      const f = checkLookalike(norm);
+      expect(f.outcome).toBe("pass");
+      expect(f.severity).toBe("info");
+    });
+  });
+
+  describe("Rule: URL_HOMOGRAPH (CP-06)", () => {
+    it("triggers fail (severity high, weight 30) for punycode label (U6: xn--pple-43d.com)", () => {
+      const norm = normaliseUrl("https://xn--pple-43d.com/");
+      const f = checkHomograph(norm);
+      expect(f.outcome).toBe("fail");
+      expect(f.severity).toBe("high");
+      expect(f.weight).toBe(30);
+      expect(f.evidence).toContain("xn--pple-43d");
+      expect(f.recommendation).toBeDefined();
+      expect(() => Finding.parse(f)).not.toThrow();
+    });
+
+    it("passes for standard ASCII labels without punycode or mixed scripts", () => {
+      const norm = normaliseUrl("https://apple.com/");
+      const f = checkHomograph(norm);
+      expect(f.outcome).toBe("pass");
+      expect(f.severity).toBe("info");
+      expect(f.weight).toBe(0);
+      expect(() => Finding.parse(f)).not.toThrow();
+    });
+
+    it("passes for IP address literal", () => {
+      const norm = normaliseUrl("http://198.51.100.23/");
+      const f = checkHomograph(norm);
+      expect(f.outcome).toBe("pass");
+    });
+  });
+
+  describe("Rule: URL_BRAND_SUBDOMAIN (CP-06)", () => {
+    it("triggers warn (severity medium, weight 25) when brand appears in subdomain of unrelated domain (U8)", () => {
+      const norm = normaliseUrl("https://paypal.com.account-verify.xyz/login");
+      const f = checkBrandSubdomain(norm);
+      expect(f.outcome).toBe("warn");
+      expect(f.severity).toBe("medium");
+      expect(f.weight).toBe(25);
+      expect(f.evidence).toContain("paypal");
+      expect(f.evidence).toContain("account-verify.xyz");
+      expect(f.recommendation).toBeDefined();
+      expect(() => Finding.parse(f)).not.toThrow();
+    });
+
+    it("passes when the domain itself is the brand", () => {
+      const norm = normaliseUrl("https://login.paypal.com/signin");
+      const f = checkBrandSubdomain(norm);
+      expect(f.outcome).toBe("pass");
+      expect(f.severity).toBe("info");
+      expect(f.weight).toBe(0);
+    });
+
+    it("passes when no brand appears in subdomain or path", () => {
+      const norm = normaliseUrl("https://example.com/");
+      const f = checkBrandSubdomain(norm);
+      expect(f.outcome).toBe("pass");
+    });
+  });
+
+  describe("Rule: URL_SHORTENER (CP-06)", () => {
+    it("triggers warn (severity medium, weight 15) for known shortener host (U7: bit.ly)", () => {
+      const norm = normaliseUrl("https://bit.ly/abc123");
+      const f = checkShortener(norm);
+      expect(f.outcome).toBe("warn");
+      expect(f.severity).toBe("medium");
+      expect(f.weight).toBe(15);
+      expect(f.evidence).toContain("bit.ly");
+      expect(f.recommendation).toBeDefined();
+      expect(() => Finding.parse(f)).not.toThrow();
+    });
+
+    it("passes for standard non-shortener hosts", () => {
+      const norm = normaliseUrl("https://example.com/some/long/path");
+      const f = checkShortener(norm);
+      expect(f.outcome).toBe("pass");
+      expect(f.severity).toBe("info");
+      expect(f.weight).toBe(0);
+    });
+  });
+
+  it("always emits exactly all 16 rules in runAllRules", () => {
+    const norm = normaliseUrl("https://example.com/");
+    const findings = runAllRules(norm);
+    expect(findings).toHaveLength(16);
+    expect(findings.every((f) => f.outcome === "pass")).toBe(true);
   });
 });

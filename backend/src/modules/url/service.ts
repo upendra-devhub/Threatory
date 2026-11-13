@@ -1,12 +1,13 @@
 import crypto from "node:crypto";
 import { Report } from "@threatory/contracts";
 import { normaliseUrl, NormalisedUrl } from "./normalise.js";
-import { runCoreRules, FindingResult } from "./rules.js";
+import { runAllRules, FindingResult, RunRulesOptions } from "./rules.js";
 import { rulesVersion, thresholds } from "./rules.config.js";
 
-export interface AnalyseUrlOptions {
+export interface AnalyseUrlOptions extends RunRulesOptions {
   scanId?: string;
   createdAt?: string;
+  feedLastUpdated?: string | null;
 }
 
 export interface UrlServiceResult {
@@ -23,11 +24,26 @@ function calculateAssessment(findingResults: FindingResult[]): {
   label: string;
   scoreMeaning: string;
 } {
+  const feedMatched = findingResults.some(
+    (f) => f.code === "URL_FEED_MATCH" && f.triggered
+  );
+
   const sumWeights = findingResults.reduce(
     (acc, f) => (f.triggered ? acc + f.weight : acc),
     0
   );
-  const score = Math.min(thresholds.maxScore, sumWeights);
+  const score = feedMatched
+    ? thresholds.maxScore
+    : Math.min(thresholds.maxScore, sumWeights);
+
+  if (feedMatched || score > thresholds.scoreBrackets.mediumMax) {
+    return {
+      score,
+      riskLevel: "high",
+      label: "High",
+      scoreMeaning: "High risk indicators detected",
+    };
+  }
 
   if (score <= thresholds.scoreBrackets.noneDetectedMax) {
     return {
@@ -47,32 +63,23 @@ function calculateAssessment(findingResults: FindingResult[]): {
     };
   }
 
-  if (score <= thresholds.scoreBrackets.mediumMax) {
-    return {
-      score,
-      riskLevel: "medium",
-      label: "Medium",
-      scoreMeaning: "Medium risk indicators detected",
-    };
-  }
-
   return {
     score,
-    riskLevel: "high",
-    label: "High",
-    scoreMeaning: "High risk indicators detected",
+    riskLevel: "medium",
+    label: "Medium",
+    scoreMeaning: "Medium risk indicators detected",
   };
 }
 
 /**
- * Analyzes a URL string, runs core detection rules, and returns a validated Report.
+ * Analyzes a URL string, runs deterministic detection rules, and returns a validated Report.
  */
 export function analyseUrl(
   rawUrl: string,
   options?: AnalyseUrlOptions
 ): UrlServiceResult {
   const normalised = normaliseUrl(rawUrl);
-  const findingResults = runCoreRules(normalised);
+  const findingResults = runAllRules(normalised, options);
   const assessment = calculateAssessment(findingResults);
 
   const scanId = options?.scanId || `scan-url-${crypto.randomUUID()}`;
@@ -92,6 +99,14 @@ export function analyseUrl(
     ...(f.recommendation ? { recommendation: f.recommendation } : {}),
   }));
 
+  const limitations = [
+    "Link not visited",
+    "Page content not analysed",
+    options?.feedLastUpdated
+      ? `Reputation checked against locally stored threat intelligence feeds (last updated: ${options.feedLastUpdated})`
+      : "Reputation feeds not consulted",
+  ];
+
   const reportData = {
     scanId,
     module: "url" as const,
@@ -100,11 +115,7 @@ export function analyseUrl(
     targetSummary: normalised.original,
     assessment,
     findings,
-    limitations: [
-      "Link not visited",
-      "Page content not analysed",
-      "Reputation feeds not consulted",
-    ],
+    limitations,
     details: {
       scheme: normalised.scheme,
       host: normalised.host,
