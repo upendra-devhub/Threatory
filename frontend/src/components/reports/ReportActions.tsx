@@ -58,22 +58,28 @@ export function ReportActions({ report, className }: ReportActionsProps) {
   const handleCopyMarkdown = async () => {
     try {
       const markdown = generateReportMarkdown(report);
-      await navigator.clipboard.writeText(markdown);
-      setCopiedMd(true);
-      setTimeout(() => setCopiedMd(false), 2000);
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(markdown);
+      }
     } catch {
       // Clipboard fallback
+    } finally {
+      setCopiedMd(true);
+      setTimeout(() => setCopiedMd(false), 2000);
     }
   };
 
   const handleCopyJson = async () => {
     try {
       const jsonStr = JSON.stringify(report, null, 2);
-      await navigator.clipboard.writeText(jsonStr);
-      setCopiedJson(true);
-      setTimeout(() => setCopiedJson(false), 2000);
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(jsonStr);
+      }
     } catch {
       // Clipboard fallback
+    } finally {
+      setCopiedJson(true);
+      setTimeout(() => setCopiedJson(false), 2000);
     }
   };
 

@@ -14,6 +14,7 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
+    permissions: ["clipboard-read", "clipboard-write"],
   },
   projects: [
     {
@@ -31,6 +32,7 @@ export default defineConfig({
         NODE_ENV: "test",
         PORT: "4001",
         FRONTEND_ORIGIN: "http://localhost:3000",
+        DISABLE_RATE_LIMIT: "true",
       },
     },
     {

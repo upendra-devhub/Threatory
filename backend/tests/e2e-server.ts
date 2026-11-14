@@ -22,6 +22,7 @@ export async function startE2EServer(portOverride?: number): Promise<E2EServerIn
   process.env.MONGODB_URI = mongoUri;
   process.env.FRONTEND_ORIGIN = frontendOrigin;
   process.env.COOKIE_SECRET = "test_cookie_secret_at_least_32_characters_long_for_e2e";
+  process.env.DISABLE_RATE_LIMIT = "true";
   // Ensure DEV_OWNER_ID is not set by default so real anonymous tid cookies are issued
   if (!process.env.DEV_OWNER_ID) {
     delete process.env.DEV_OWNER_ID;
