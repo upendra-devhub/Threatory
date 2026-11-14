@@ -5,9 +5,21 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Threatory — Web Security & Privacy Analysis",
+  title: {
+    default: "Threatory — Web Security & Privacy Analysis",
+    template: "%s | Threatory",
+  },
   description:
     "Deterministic, evidence-backed security analysis for URLs, personal privacy exposure, and website security configuration.",
+  icons: {
+    icon: "/icon.svg",
+  },
+  openGraph: {
+    title: "Threatory — Web Security & Privacy Analysis",
+    description:
+      "Deterministic, evidence-backed security analysis for URLs, personal privacy exposure, and website security configuration.",
+    type: "website",
+  },
 };
 
 export interface RootLayoutProps {

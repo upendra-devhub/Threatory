@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import { SavedReportView } from "@/components/reports/SavedReportView";
+
+export const metadata: Metadata = {
+  title: "Report Details",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export interface ReportPageProps {
   params: Promise<{ scanId: string }>;

@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { HistoryView } from "@/features/history";
 import { Skeleton } from "@/components/ui/skeleton";
+
+export const metadata: Metadata = {
+  title: "Scan History",
+  description: "Review and manage saved reports associated with this browser session.",
+};
 
 function HistoryFallback() {
   return (
