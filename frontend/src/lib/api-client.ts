@@ -1,7 +1,8 @@
-import { ApiError, ApiSuccess, PrivacyScanRequest, Report, UrlScanRequest } from "@threatory/contracts";
+import { ApiError, ApiSuccess, PrivacyScanRequest, Report, UrlScanRequest, WebsiteScanRequest } from "@threatory/contracts";
 import { z } from "zod";
 
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+export const DEFAULT_WEBSITE_REQUEST_TIMEOUT_MS = 30_000;
 export const DEFAULT_HEALTH_TIMEOUT_MS = 5_000;
 
 export type ApiErrorCode = ApiError["error"]["code"];
@@ -11,7 +12,7 @@ export const FRIENDLY_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   VALIDATION_ERROR:
     "The request could not be processed because the supplied information was invalid.",
   NOT_FOUND: "The requested report could not be found.",
-  TARGET_BLOCKED: "The requested target could not be processed.",
+  TARGET_BLOCKED: "This address cannot be audited because it is not a public website",
   RATE_LIMITED: "Too many requests. Try again later.",
   INTERNAL: "Something went wrong while processing the request.",
   UPSTREAM_FAILURE: "A required external service could not complete the operation.",
@@ -90,6 +91,7 @@ export const queryKeys = {
   health: () => ["api-health"] as const,
   urlScan: () => ["url-scan"] as const,
   privacyScan: () => ["privacy-scan"] as const,
+  websiteScan: () => ["website-scan"] as const,
 };
 
 function createAbortError(): Error {
@@ -334,6 +336,49 @@ export async function submitPrivacyScan(
       return { success: true, data: report.data };
     },
     {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers ?? {}),
+      },
+      body: JSON.stringify(validated.data),
+    }
+  );
+}
+
+export async function submitWebsiteScan(
+  request: WebsiteScanRequest,
+  options: ApiRequestOptions = {}
+): Promise<Report> {
+  const validated = WebsiteScanRequest.safeParse(request);
+  if (!validated.success) {
+    throw new ApiClientError({
+      code: "VALIDATION_ERROR",
+      status: 400,
+      serverMessage: "Invalid website scan request",
+      fields: validated.error.issues.map((i) => ({
+        path: i.path.join("."),
+        message: i.message,
+      })),
+    });
+  }
+
+  return requestApi<Report>(
+    "/api/scans/website",
+    (payload) => {
+      const parsed = ReportSuccessSchema.safeParse(payload);
+      if (!parsed.success || !parsed.data.data) {
+        return { success: false };
+      }
+      const report = Report.safeParse(parsed.data.data);
+      if (!report.success) {
+        return { success: false };
+      }
+      return { success: true, data: report.data };
+    },
+    {
+      timeoutMs: DEFAULT_WEBSITE_REQUEST_TIMEOUT_MS,
       ...options,
       method: "POST",
       headers: {
