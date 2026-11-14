@@ -37,8 +37,16 @@ export function createApp(): Express {
   // CORS: exact FRONTEND_ORIGIN, credentials
   app.use(
     cors({
-      origin: env.FRONTEND_ORIGIN,
+      origin: (requestOrigin, callback) => {
+        if (!requestOrigin || requestOrigin === env.FRONTEND_ORIGIN) {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
       credentials: true,
+      methods: ["GET", "POST", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
     })
   );
 

@@ -1,0 +1,6 @@
+# Gitleaks ignore list for verified synthetic test fixtures in unit tests
+# These are mock tokens (RFC 7519 JWT example, fake Slack bot token, synthetic API keys) used to verify detection rules and masking.
+48a068c95e637b3d85ae7b637240c07940b4da86:backend/tests/privacy-rules.test.ts:jwt:428
+960bdf7c7c00e2882ce15715eeb8b451448c294a:backend/tests/privacy-masking.test.ts:slack-bot-token:75
+960bdf7c7c00e2882ce15715eeb8b451448c294a:backend/tests/privacy-masking.test.ts:jwt:93
+960bdf7c7c00e2882ce15715eeb8b451448c294a:backend/tests/privacy-masking.test.ts:generic-api-key:81

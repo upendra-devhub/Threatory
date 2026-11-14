@@ -89,9 +89,10 @@ export function errorHandler(
     return;
   }
 
-  if (typeof err === "object" && err !== null && "status" in err) {
-    const status = (err as { status?: unknown }).status;
-    if (status === 400) {
+  if (typeof err === "object" && err !== null) {
+    const errObj = err as { status?: unknown; statusCode?: unknown; type?: unknown };
+    const status = errObj.status ?? errObj.statusCode;
+    if (status === 400 || errObj.type === "entity.parse.failed") {
       res.status(400).json({
         success: false,
         error: {
@@ -101,7 +102,7 @@ export function errorHandler(
       });
       return;
     }
-    if (status === 413) {
+    if (status === 413 || errObj.type === "entity.too.large") {
       res.status(400).json({
         success: false,
         error: {
