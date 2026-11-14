@@ -1,4 +1,4 @@
-import { HistoryPage, Module, Report } from "@threatory/contracts";
+import { DashboardSummary, HistoryPage, Module, Report } from "@threatory/contracts";
 import { Scan, IScan } from "../models/scan.js";
 
 export interface ListScansOptions {
@@ -161,6 +161,107 @@ export const scanRepository = {
       page,
       limit,
       total,
+    });
+  },
+
+  async getDashboardSummary(ownerId: string): Promise<DashboardSummary> {
+    interface FacetResult {
+      total: Array<{ count: number }>;
+      byModule: Array<{ _id: string; count: number }>;
+      byRiskLevel: Array<{ _id: string; count: number }>;
+      recent: Array<{
+        scanId: string;
+        module: "url" | "privacy" | "website";
+        status: "completed" | "partial" | "failed";
+        targetSummary: string;
+        assessment: {
+          label: string;
+          riskLevel: "none_detected" | "low" | "medium" | "high";
+        };
+        createdAt: Date | string;
+      }>;
+    }
+
+    const [facet] = (await Scan.aggregate<FacetResult>([
+      { $match: { ownerId } },
+      {
+        $facet: {
+          total: [{ $count: "count" }],
+          byModule: [{ $group: { _id: "$module", count: { $sum: 1 } } }],
+          byRiskLevel: [
+            { $group: { _id: "$assessment.riskLevel", count: { $sum: 1 } } },
+          ],
+          recent: [
+            { $sort: { createdAt: -1, _id: -1 } },
+            { $limit: 5 },
+            {
+              $project: {
+                _id: 0,
+                scanId: 1,
+                module: 1,
+                status: 1,
+                targetSummary: 1,
+                assessment: {
+                  label: "$assessment.label",
+                  riskLevel: "$assessment.riskLevel",
+                },
+                createdAt: 1,
+              },
+            },
+          ],
+        },
+      },
+    ]).exec()) as [FacetResult | undefined];
+
+    const totalScans = facet?.total[0]?.count ?? 0;
+
+    const byModule = {
+      url: 0,
+      privacy: 0,
+      website: 0,
+    };
+    if (facet?.byModule) {
+      for (const m of facet.byModule) {
+        if (m._id in byModule) {
+          byModule[m._id as keyof typeof byModule] = m.count;
+        }
+      }
+    }
+
+    const byRiskLevel = {
+      none_detected: 0,
+      low: 0,
+      medium: 0,
+      high: 0,
+    };
+    if (facet?.byRiskLevel) {
+      for (const r of facet.byRiskLevel) {
+        if (r._id in byRiskLevel) {
+          byRiskLevel[r._id as keyof typeof byRiskLevel] = r.count;
+        }
+      }
+    }
+
+    const recent = (facet?.recent || []).map((doc) => ({
+      scanId: doc.scanId,
+      module: doc.module,
+      status: doc.status,
+      targetSummary: doc.targetSummary,
+      assessment: {
+        label: doc.assessment.label,
+        riskLevel: doc.assessment.riskLevel,
+      },
+      createdAt:
+        doc.createdAt instanceof Date
+          ? doc.createdAt.toISOString()
+          : new Date(doc.createdAt).toISOString(),
+    }));
+
+    return DashboardSummary.parse({
+      totalScans,
+      byModule,
+      byRiskLevel,
+      recent,
     });
   },
 };

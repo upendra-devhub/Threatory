@@ -28,6 +28,7 @@ describe("GET /api/scans (History Endpoint - CP-11 Task 1)", () => {
   let mongod: MongoMemoryServer;
 
   beforeAll(async () => {
+    delete process.env.DEV_OWNER_ID;
     process.env.DISABLE_RATE_LIMIT = "true";
     mongod = await MongoMemoryServer.create();
     const uri = mongod.getUri();
@@ -41,6 +42,7 @@ describe("GET /api/scans (History Endpoint - CP-11 Task 1)", () => {
   });
 
   beforeEach(async () => {
+    delete process.env.DEV_OWNER_ID;
     await Scan.deleteMany({});
   });
 

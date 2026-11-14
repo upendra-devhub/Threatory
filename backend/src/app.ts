@@ -9,6 +9,7 @@ import { notFoundHandler, errorHandler } from "./middleware/errors.js";
 import { ownerMiddleware } from "./middleware/owner.js";
 import { healthRouter } from "./routes/health.js";
 import { scansRouter } from "./routes/scans.js";
+import { dashboardRouter } from "./routes/dashboard.js";
 
 export function createApp(): Express {
   const env = getEnv();
@@ -57,6 +58,7 @@ export function createApp(): Express {
   // Routes
   app.use("/api/health", healthRouter);
   app.use("/api/scans", scansRouter);
+  app.use("/api/dashboard", dashboardRouter);
 
   // 404 handler for unknown routes
   app.use(notFoundHandler);
