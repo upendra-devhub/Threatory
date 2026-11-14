@@ -43,6 +43,7 @@ export function OutcomeBadge({ outcome, className }: OutcomeBadgeProps) {
 
   return (
     <span
+      data-testid="outcome-badge"
       data-outcome={outcome}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-xs font-medium",
