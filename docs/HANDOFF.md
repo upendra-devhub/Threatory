@@ -1,19 +1,99 @@
 # HANDOFF
 
 ## Baton
-Current owner: Sana                      Updated: 2026-11-14
-Status: IN PROGRESS
-Last completed: CP-10 (tag `cp-10-done`)
-Current checkpoint: CP-11 (History, report actions and dashboard)
+Current owner: upendra-devhub              Updated: 2026-11-14
+Status: READY
+Last completed: CP-11 (tag `cp-11-done`)
+Current checkpoint: CP-12 (Consistency, polish and handover)
 Current branch: `main`
 
 ## Exact next step
-The next checkpoint is **CP-11 — History & Dashboard screen**.
-- Person A takes the baton to implement the History list screen (`/history`) and Dashboard summary screen (`/`).
-- Connect to `GET /api/scans` for owner-scoped history with pagination (page, limit) and module filter.
-- Support report deletion via `DELETE /api/scans/:scanId` with confirmation dialog and optimistic/invalidated query refresh.
-- Connect to `GET /api/dashboard/summary` to render scan totals, module breakdown, and risk distribution using Recharts.
-- Maintain full accessibility (`vitest-axe` with 0 violations) and end-to-end user journeys for history and dashboard.
+The next checkpoint is **CP-12 — Consistency, polish and handover**.
+- Next owner: `upendra-devhub`.
+- Status: `READY`.
+- Revisit endpoint status code consistency: `POST /api/scans/website` and `/privacy` return 200, whereas `/url` returns 201 per earlier decisions.
+- Perform final audit across all tools, reports, history, and dashboard.
+- Prepare handover and final project delivery.
+
+## History, Report Actions & Dashboard Reference (CP-11)
+- **Feature Locations:**
+  - **Backend API Routes:**
+    - `GET /api/scans`: Filterable, paginated scan history endpoint returning `HistoryPage` (`backend/src/routes/scans.ts`).
+    - `GET /api/dashboard/summary`: High-performance summary endpoint using MongoDB `$facet` aggregation (`backend/src/routes/dashboard.ts`).
+    - `DELETE /api/scans/:scanId`: Owner-scoped scan deletion (`backend/src/routes/scans.ts`).
+  - **Scan Repository Helpers:**
+    - `scanRepository.list(options)`: Multi-filter query with `module`, `status`, `from`, `to`, `page`, and `limit` capped at 50, sorted newest first (`backend/src/repositories/scanRepository.ts`).
+    - `scanRepository.getDashboardSummary(ownerId)`: Atomic `$facet` pipeline returning `DashboardSummary` (`backend/src/repositories/scanRepository.ts`).
+  - **Frontend History Screen:** `frontend/src/features/history/` and `frontend/src/app/history/page.tsx`
+    - `HistoryView.tsx`: Main view coordinating search params in URL, retention notice, filters, loading skeletons, empty states, and pagination.
+    - `HistoryTable.tsx`: Semantic table displaying Date (UTC), Module, Target, Assessment, Status, and View Report action. Submitted URLs are strictly rendered as plain text (never clickable links).
+    - `HistoryFilters.tsx`: Accessible `<select>` controls for Module and Status with reset button. Filter state is synchronized with URL search params and survives page reloads.
+    - `HistoryPagination.tsx`: Pagination controls navigating pages with Previous / Next buttons and item count indicators.
+  - **Frontend Report Actions:** `frontend/src/components/reports/`
+    - `ReportActions.tsx`: Action toolbar offering Copy as Markdown, Copy as JSON, Print report, and Delete report.
+    - `DeleteConfirmDialog.tsx`: Accessible confirmation modal with focus trapping and keyboard Escape dismissal. Confirmed deletion calls `DELETE /api/scans/:scanId`, invalidates query caches, and redirects to `/history`.
+    - `format-markdown.ts`: Sanitized Markdown report serializer containing findings and limitations with zero cookies, session tokens, or raw privacy input.
+    - `RetentionNotice.tsx`: Accessible session storage & retention notice banner displayed across `/history`, `/reports/[scanId]`, and `/`.
+    - Print Stylesheet (`frontend/src/app/globals.css`): `@media print` rules hiding navigation, controls, and action bars (`data-no-print`), while preserving full report content, color fidelity, and limitations.
+  - **Frontend Dashboard Screen:** `frontend/src/features/dashboard/` and `frontend/src/app/page.tsx`
+    - `DashboardView.tsx`: Root platform view at `/` presenting stat cards, charts, recent scans, and first-use empty state.
+    - `StatCards.tsx`: Stat cards showing Total Scans, URL Scans, Privacy Scans, Website Scans, and High Risk Scans, each with short explanatory text. Zero hardcoded numbers.
+    - `RiskLevelDonutChart.tsx`: Recharts donut chart visualizing risk level distribution (`none_detected`, `low`, `medium`, `high`) accompanied by an accessible screen-reader table.
+    - `ModuleBarChart.tsx`: Recharts bar chart showing scans per analyzer module (`url`, `privacy`, `website`) accompanied by an accessible screen-reader table.
+    - `RecentScansTable.tsx`: Table listing up to 5 most recent scans with safe plain-text target summaries and links to report pages.
+
+### Aggregation Shape ($facet)
+In `backend/src/repositories/scanRepository.ts`:
+```ts
+[
+  { $match: { ownerId } },
+  {
+    $facet: {
+      totalScans: [{ $count: "count" }],
+      byModule: [
+        { $group: { _id: "$module", count: { $sum: 1 } } }
+      ],
+      byRiskLevel: [
+        { $group: { _id: "$assessment.riskLevel", count: { $sum: 1 } } }
+      ],
+      recent: [
+        { $sort: { createdAt: -1 } },
+        { $limit: 5 },
+        {
+          $project: {
+            _id: 0,
+            scanId: 1,
+            module: 1,
+            status: 1,
+            targetSummary: 1,
+            assessment: 1,
+            createdAt: 1,
+          },
+        },
+      ],
+    },
+  },
+]
+```
+Returns a zero-filled `DashboardSummary` structure when the owner has no records.
+
+### Retention Notice Wording
+The exact retention notice displayed on `/history`, `/reports/[scanId]`, and `/` is:
+> **Session storage & retention:** Reports belong to this browser session and expire automatically: privacy reports expire after 7 days, and URL and website reports after 30 days.
+
+### How History & Dashboard are Tested and Seeded
+- **Backend Unit Tests:**
+  - `backend/tests/history-endpoint.test.ts`: Seeds scans directly in MongoDB using Mongoose with two distinct owners (`owner-alpha-1111` and `owner-beta-2222`). Validates newest-first ordering, filtering by module and status, date range filtering (`from`/`to`), pagination (`page`, `limit` capped at 50), Zod query validation (rejects invalid values with 400 `VALIDATION_ERROR`), and cross-owner isolation (other owner's data never returned).
+  - `backend/tests/dashboard-endpoint.test.ts`: Seeds a multi-module dataset with known risk levels and dates. Tests that empty owners return zeros, seeded totals and distributions match calculated counts exactly, 2-owner isolation holds, and scan deletion immediately updates the dashboard summary.
+- **Frontend Unit & Accessibility Tests:**
+  - `frontend/tests/history.test.tsx`: Validates retention banner, plain-text target summary rendering (proves no clickable links), module/status filter selection updating URL search params, empty states (unfiltered with tool links vs filtered with reset button), and 0 axe accessibility violations.
+  - `frontend/tests/report-actions.test.tsx`: Validates Copy Markdown (sanitized, zero cookie values, zero raw privacy input), Copy JSON, window.print() invocation, delete modal cancellation and confirmation, and 0 axe violations.
+  - `frontend/tests/dashboard.test.tsx`: Validates stat card values matching contract fixtures, chart accessible text alternatives, recent scans table plain-text rendering, error state with retry, first-use empty state with quick links, and 0 axe violations.
+- **Playwright End-to-End Tests (`e2e/src/history-dashboard.spec.ts`):**
+  - **Journey 1:** First-use dashboard empty state -> run URL scan -> return to dashboard -> verify dynamic counter update (1 total, 1 URL) and recent scans table.
+  - **Journey 2:** History page filters -> select module filter -> reload page (`page.reload()`) -> verify filter survives in URL search params -> reset filters.
+  - **Journey 3:** Saved report actions -> Copy Markdown and Copy JSON feedback -> Print media emulation (`page.emulateMedia({ media: 'print' })` confirms limitations visible and action bar hidden) -> Delete report with confirmation dialog -> verify redirect to `/history` and dashboard count decremented.
+  - **Journey 4:** Two distinct Playwright browser contexts (`browser.newContext()`) with separate cookie jars. Owner 1 creates a scan and sees 1 scan in history/dashboard; Owner 2 sees 0 scans (empty state). Owner 2 attempting to load Owner 1's report directly receives 404 `NOT_FOUND` ("Report not found").
 
 ## Privacy Module Reference (CP-07 & CP-08)
 - **Rules Version:** `privacy-1.0.0`
@@ -96,92 +176,17 @@ The next checkpoint is **CP-11 — History & Dashboard screen**.
      - `SITE_COOKIE_HTTPONLY`: Missing (medium if auth/session-like name, otherwise low).
      - `SITE_COOKIE_SAMESITE`: Missing or None (low).
 
-### Test Injection Points
-- `AddressPolicy`: Pluggable IP validator function `(ip: string) => boolean`. In production, defaults to `isPublicUnicastAddress` (`ssrf-guard.ts`); test suites inject custom policies to allow local test servers (`127.0.0.1`) while testing SSRF enforcement separately.
-- `DnsResolver`: Pluggable DNS A/AAAA resolver. In production, defaults to `dns.promises.lookup`; tests inject mock resolvers to simulate DNS failures and timeouts.
-- `EmailDnsResolver`: Pluggable TXT and CAA DNS resolvers (`resolveTxt`, `resolveCaa`). In production, defaults to `dns.promises`; tests inject canned records or simulated errors.
-- `customCa`: Array of CA buffers passed to `tls.connect` and `undici.Agent` to validate self-signed certificates in automated test suites without weakening production CA trust.
-- `allowCustomPort`: Boolean flag allowing test servers on ephemeral ports (e.g. 8443, 3000) while production strictly requires standard ports 80 and 443.
-
-### Timeout & Limit Values
-- **TCP Connect Timeout:** 5 seconds (`connectTimeoutMs: 5000`)
-- **HTTP Request Timeout:** 10 seconds (`requestTimeoutMs: 10000`)
-- **Per-Check Orchestration Timeout:** 8 seconds (`CHECK_TIMEOUT_MS = 8000`)
-- **Overall Scan Budget:** 25 seconds (`OVERALL_SCAN_BUDGET_MS = 25000`)
-- **Read Body Cap:** 256 KB (`MAX_BODY_BYTES = 262144`)
-- **Max Redirects:** 3 hops (`MAX_REDIRECTS = 3`)
-- **Concurrency Limit:** 3 concurrent requests (`CONCURRENCY_LIMIT = 3`)
-
-### Manual Online Test (Golden Input W3)
-- **Target URL:** `https://example.com`, `authorised: true`
-- **Execution:** `POST /api/scans/website` with JSON payload `{"url": "https://example.com", "authorised": true}`
-- **Observed Result:**
-  - Status: `"completed"`
-  - Score: None (score is omitted for website scans per Appendix A/B3; URL module only)
-  - Risk Level: `medium` (due to missing HSTS on example.com)
-  - Certificate: Valid X.509 certificate issued by DigiCert / SSL Corporation to `example.com`, negotiated protocol TLSv1.3.
-  - Finding Groups: All 4 groups populated (`dns`: 4 findings, `tls`: 6 findings, `headers`: 7 findings, `cookies`: 1 finding [single pass] = 18 total findings).
-
 ### Stored-Data & Retention Rules
 - **Absolute No-Storage Rule:** Response bodies and cookie values are **never** stored, logged, or returned in findings or reports. Cookie analysis retains only cookie name, secure/httpOnly flags, and sameSite attribute.
 - **Retention:** Website scan reports expire after 30 days (`expiresAt = createdAt + 30 days`).
 - **Owner Identification:** Associated with signed HttpOnly cookie `tid` or `DEV_OWNER_ID`.
-
-## Website Auditor Screen Reference (CP-10)
-- **Screen Location (Frontend):** `frontend/src/features/website/` and `frontend/src/app/website-auditor/page.tsx`
-  - `components/WebsiteAuditorView.tsx`: Main view coordinating page header, scope notice, form, progress state, error feedback, and result presentation.
-  - `components/WebsiteScanForm.tsx`: React Hook Form + Zod resolver validating `url` and mandatory `authorised: true` checkbox before submission.
-  - `components/AuthorisationCheckbox.tsx`: Accessible mandatory confirmation checkbox with exact text "I own this site or have permission to assess it".
-  - `components/WebsiteScopeNotice.tsx`: Landmark region explaining passive security assessment vs excluded exploits/payloads.
-  - `components/WebsiteScanProgress.tsx`: Status indicator announcing that the passive audit can take up to 25 seconds.
-  - `components/CertificateCard.tsx`: Structured plain-text display of TLS certificate details (subject, issuer, valid from/to, protocol, days remaining, authorized status).
-  - `components/WebsiteResult.tsx`: Result container with grouped findings, certificate summary, and limitations.
-  - `hooks/useWebsiteScan.ts`: TanStack Query mutation hook managing submission to `POST /api/scans/website`, 30s timeout, sanitized error mapping, and memory-only retry state.
-
-### How Partial and Blocked States are Tested
-- **Blocked State (TARGET_BLOCKED):**
-  - Tested in unit suite (`frontend/tests/website-auditor.test.tsx`) with mocked 422 `TARGET_BLOCKED` response.
-  - Tested in E2E suite (`e2e/src/website-auditor.spec.ts`) against the real backend using Golden Input W1 (`http://127.0.0.1` with authorisation checked).
-  - Verifies that error copy displays EXACTLY: `"This address cannot be audited because it is not a public website"`, with zero internal IP, port, interface, or server details exposed.
-- **Partial State (not_assessed findings):**
-  - Tested in unit suite using `website-report-partial.json` contract fixture.
-  - Tested in E2E suite using Playwright route interception (`page.route`) delivering `website-report-partial.json`.
-  - Verifies that `PartialBanner` explicitly names the unassessed check (`SITE_DMARC`), `not_assessed` has a distinct visual badge (`CircleDashed`, label "Not assessed", dashed border), and is never counted or shown as pass.
-- **Authorisation Enforcement:**
-  - Tested in both unit and E2E suites: submitting without checking "I own this site or have permission to assess it" blocks submission with client-side error "You must confirm authorisation to audit this website" and prevents outbound network requests.
-- **Strict Plain-Text Invariant:**
-  - Tested in both unit and E2E suites: submitted URLs and certificate subjects are rendered as plain text and never wrapped in `<a href="...">` or `<Link>`.
-
-### Manual Online Test Steps (Golden Input W3)
-To run the online check against a live public website (`https://example.com`):
-1. **Prerequisites:** Ensure internet connectivity is available.
-2. **Start Backend Server:**
-   `npx tsx backend/tests/e2e-server.ts`
-   (or `npm start -w backend` with MongoDB running on `127.0.0.1:27017`)
-3. **Start Frontend Dev Server:**
-   `npm run dev -w frontend` (runs on `http://localhost:3000`)
-4. **Open Browser:**
-   Navigate to `http://localhost:3000/website-auditor`.
-5. **Fill Form:**
-   - URL: `https://example.com`
-   - Checkbox: Tick "I own this site or have permission to assess it".
-6. **Submit:**
-   Click "Audit website". Observe progress message: "Auditing website security configuration... A scan can take up to 25 seconds to complete."
-7. **Verify Results:**
-   - Status: Completed (or partial if upstream DNS restricts queries).
-   - Groups: All four groups render: "Connection and TLS", "HTTP headers", "Cookies", and "DNS and email".
-   - Certificate: Certificate summary card displays subject (`example.com`), issuer, valid dates, protocol (`TLSv1.3`), days remaining, and Authorized badge.
-   - Assessment: Shows assessment summary label ("Medium" or "Low") with NO numeric score.
-   - Target URL: Displayed as plain text without any clickable external link.
-   - Saved Report: "Open saved report" button navigates to `/reports/[scanId]`.
-*(Automated verification of W3 against live servers was executed and confirmed green: `1 passed (39.5s)`).*
 
 ## How to run (keep accurate)
 Node version: 22 (per `.nvmrc`; verified locally on Node `v22.23.4`)
 Workspaces: `packages/contracts` (`@threatory/contracts`), `backend`, `frontend`, `e2e`
 Install: `npm ci`
 Verify: `npm run verify` (builds contracts, lints, typechecks, tests all workspaces, and builds contracts, backend, frontend Next.js production build, and e2e)
-E2E tests: `npm run e2e` (starts in-memory MongoDB test server, backend test instance on port 4001, frontend on port 3000, executes Playwright browser journeys, and cleanly shuts down)
+E2E tests: `npm run e2e` (starts in-memory MongoDB test server, backend test instance on port 4001, frontend on port 3000, executes Playwright browser journeys across 21 test specs, and cleanly shuts down)
 Lint: `npm run lint` | Typecheck: `npm run typecheck` | Test: `npm run test` | Build: `npm run build`
 Local database: `docker compose up -d` (or local `mongod` listening on `127.0.0.1:27017`)
 Seed database: `npm run seed -w backend` (upserts the 9 contract report fixtures for `DEV_OWNER_ID`)
@@ -210,6 +215,7 @@ Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
 | CP-08 | Person A | 2026-11-13 | `cp-08-done` | Privacy Analyzer screen (`/privacy-analyzer`), dynamic profile rows (1-10 with removal safeguards), visible scope notice landmark (no password field exists), mandatory consent enforcement, zero browser storage leaks (`localStorage`, `sessionStorage`, `IndexedDB`, URL query/hash), safe masked report presentation, error/retry input preservation, and Playwright end-to-end journeys (P1, P2, reload persistence, mobile viewport) |
 | CP-09 | Sana | 2026-11-13 | `cp-09-done` | Website Auditor engine, SSRF guard (RFC compliance, undici pinned connector, 3-hop redirect guard), 20 detection rules (DNS, TLS, Headers, Cookies), Promise.allSettled orchestration with 8s/25s timeouts, partial reports on timeout, POST /api/scans/website endpoint, 30-day TTL, zero response body/cookie value storage, verified on golden inputs W1 (422), W2 (400), W3 (live completed) |
 | CP-10 | Sana | 2026-11-14 | `cp-10-done` | Website Auditor screen (`/website-auditor`), mandatory authorisation checkbox ("I own this site or have permission to assess it"), plain-text scope disclosures, 25s progress feedback, results grouped into 4 categories (Connection and TLS, HTTP headers, Cookies, DNS and email), certificate summary card, partial banner naming unassessed checks, friendly TARGET_BLOCKED copy, zero score fabrication, strict plain-text URL rendering, 0 axe violations, Vitest unit/accessibility suite (16 tests), and Playwright E2E journeys (W1 blocked, mocked partial, authorisation enforcement, responsive layout) |
+| CP-11 | Sana | 2026-11-14 | `cp-11-done` | History list, report actions, and platform dashboard. Backend `GET /api/scans` with filtering, pagination (max 50), and owner scoping; `GET /api/dashboard/summary` with atomic MongoDB `$facet` aggregation (sub-tag `cp-11a-done`). Frontend `/history` with URL-synchronized filters and pagination; report actions toolbar (copy Markdown, copy JSON, print stylesheet, delete modal); `/` dashboard with stat cards, Recharts donut & bar charts, and recent scans table. Zero axe violations. 21 E2E Playwright journeys all green. |
 
 ## Decisions
 1. `main` was created after CP-01 at `cp-01-done` (`c9a832c`) because the pre-CP-01 setup step existed only in the PDF. History unchanged.
@@ -263,9 +269,18 @@ Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
 49. Generalized `FindingGroup` with an optional `categoryLabels` prop, mapping website categories to exact brief headings: `tls` -> "Connection and TLS", `headers` -> "HTTP headers", `cookies` -> "Cookies", `dns` -> "DNS and email", dynamically rendering whatever findings the backend returns.
 50. Enhanced `PartialBanner` with an `unassessedChecks` prop to explicitly list unassessed check codes and titles.
 51. Aligned `TARGET_BLOCKED` error copy across `api-client.ts` and `useWebsiteScan.ts` to exactly: `"This address cannot be audited because it is not a public website"`, stripping all internal IP, port, and network details.
+52. In CP-11, worked directly on `main` branch per user override, creating granular task commits (`CP-11: <task>`) and tagging intermediate sub-checkpoint `cp-11a-done` after Tasks 1 and 2.
+53. In `backend/src/repositories/scanRepository.ts`, implemented `list(options)` supporting `module`, `status`, `from`, `to`, `page`, and `limit` (max 50) with newest-first sorting (`createdAt: -1`).
+54. In `backend/src/routes/scans.ts`, validated query parameters using Zod `HistoryQuerySchema` (rejecting invalid parameters with 400 `VALIDATION_ERROR`).
+55. In `backend/src/routes/dashboard.ts`, mounted `dashboardRouter` with `GET /api/dashboard/summary` querying `scanRepository.getDashboardSummary(ownerId)` using MongoDB `$facet` aggregation.
+56. In `frontend/src/features/history/`, table rows display `targetSummary` purely as plain text (never clickable links, never raw privacy input). Module and status filters and pagination are stored in URL search parameters (`?module=...&status=...&page=...`) and survive page reloads.
+57. In `frontend/src/components/reports/ReportActions.tsx`, added Delete with confirmation dialog (calls `DELETE /api/scans/:scanId` and redirects to `/history`), Copy as Markdown, Copy as JSON, and print stylesheet (`@media print` rules hiding navigation and action bars while displaying limitations). Copied output is sanitized to ensure zero cookies or raw privacy input are present.
+58. In `frontend/src/features/dashboard/`, dashboard at `/` displays stat cards with dynamic numbers and explanatory text, Recharts donut chart for risk level distribution with accessible text alternatives, Recharts bar chart for module counts with accessible text alternatives, recent scans table with plain text targets, and first-use empty state when `totalScans === 0`.
+59. In `backend/tests/e2e-server.ts` and `playwright.config.ts`, added `DISABLE_RATE_LIMIT = "true"` and `permissions: ["clipboard-read", "clipboard-write"]` to support extensive sequential E2E test runs (21 journeys) without 429 rate limit or headless clipboard rejections.
+60. Two-owner browser isolation was verified in Playwright E2E (`e2e/src/history-dashboard.spec.ts`) by creating two distinct browser contexts (`browser.newContext()`) with separate cookie jars; Owner 2 sees 0 scans, cannot access Owner 1's scans, and receives 404 `NOT_FOUND` when directly navigating to Owner 1's report URL.
 
 ## Contract changes
-None. Schemas implemented strictly per Appendix A and Appendix C; no changes to `packages/contracts` were required.
+None. Contracts implemented strictly per Appendix A and Appendix C; no changes to `packages/contracts` were required.
 
 ## Dependencies added
 ### Root / Workspace dependencies (CP-01 & CP-05)
@@ -290,7 +305,7 @@ None. Schemas implemented strictly per Appendix A and Appendix C; no changes to 
 - `set-cookie-parser` (^2.7.1, MIT) & `@types/set-cookie-parser` (^2.4.10, MIT): Added in CP-09 for parsing `Set-Cookie` header attributes (Secure, HttpOnly, SameSite) without retaining cookie values.
 - `selfsigned` (^3.0.0, MIT): Added in CP-09 for generating ephemeral X.509 certificates in TLS test suites.
 
-### Frontend dependencies (CP-03 & CP-05)
+### Frontend dependencies (CP-03, CP-05, CP-11)
 - `next` (`15.5.29`, MIT): Next.js App Router framework and `/api` rewrite proxy.
 - `react` & `react-dom` (`19.3.1`, MIT) + `@types/react` & `@types/react-dom` (`19.3.0`, MIT): UI runtime and strict TypeScript definitions.
 - `@tanstack/react-query` (`5.107.1`, MIT): Async report fetching, caching, cancellation, retry, and health polling.
@@ -301,16 +316,16 @@ None. Schemas implemented strictly per Appendix A and Appendix C; no changes to 
 - `@vitejs/plugin-react` (`4.7.0`, MIT), `jsdom` (`25.0.1`, MIT), `@testing-library/react` (`16.3.3`, MIT), `@testing-library/jest-dom` (`6.9.1`, MIT), `@testing-library/user-event` (`14.6.9`, MIT), `vitest-axe` (`0.1.0`, MIT): Automated DOM, interaction, and accessibility test tooling.
 - `react-hook-form` (^7.54.2, MIT): Added in CP-05 for URL scan form state management, validation error mapping, and submission handling.
 - `@hookform/resolvers` (^3.10.0, MIT): Added in CP-05 as the Zod validation resolver for React Hook Form.
+- `recharts` (^2.15.1, MIT): Added in CP-11 for accessible client-side data visualizations (donut chart for risk distribution, bar chart for module counts).
 
 ### E2E dependencies (CP-05)
 - `@playwright/test` (^1.49.1, Apache-2.0): Cross-browser end-to-end test framework orchestrating isolated test environments and full user journeys.
 
 ## Known issues
-1. `npm audit` reports vulnerabilities and `eslint@9.39.5` is flagged deprecated; not addressed in CP-02/CP-03/CP-04/CP-05/CP-06/CP-07. Do not run `npm audit fix --force`.
+1. `npm audit` reports vulnerabilities and `eslint@9.39.5` is flagged deprecated; not addressed in earlier checkpoints. Do not run `npm audit fix --force`.
 2. `next build` warns that `@next/eslint-plugin-next` is not configured in root `eslint.config.mjs` (deferred to avoid modifying root config outside scope).
 3. On Windows terminal environments, running backend tests in Standard Sandbox mode (without bypass) encounters `EACCES` on loopback `127.0.0.1` sockets (used by Supertest/Express and MongoMemoryServer); running tests with elevated network permissions allows full socket binding.
 
 ## Parking lot
 - Endpoint status code consistency: `POST /api/scans/website` and `/privacy` return 200, whereas `/url` returns 201 (revisit in CP-12).
-- History pagination/filtering, report deletion UI, and dashboard summary with Recharts (`CP-11`).
 - Dark mode toggle or theme customizer.
