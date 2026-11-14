@@ -9,6 +9,7 @@ export { PartialBanner } from "./PartialBanner";
 export { ReportSkeleton } from "./ReportSkeleton";
 export { ReportView } from "./ReportView";
 export { SavedReportView } from "./SavedReportView";
+export { RetentionNotice } from "./RetentionNotice";
 export { SeverityBadge } from "./SeverityBadge";
 export {
   formatDetailLabel,

@@ -1,4 +1,13 @@
-import { ApiError, ApiSuccess, PrivacyScanRequest, Report, UrlScanRequest, WebsiteScanRequest } from "@threatory/contracts";
+import {
+  ApiError,
+  ApiSuccess,
+  HistoryPage,
+  Module,
+  PrivacyScanRequest,
+  Report,
+  UrlScanRequest,
+  WebsiteScanRequest,
+} from "@threatory/contracts";
 import { z } from "zod";
 
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
@@ -92,6 +101,7 @@ export const queryKeys = {
   urlScan: () => ["url-scan"] as const,
   privacyScan: () => ["privacy-scan"] as const,
   websiteScan: () => ["website-scan"] as const,
+  history: (params: HistoryQueryParams = {}) => ["history", params] as const,
 };
 
 function createAbortError(): Error {
@@ -188,6 +198,48 @@ async function parseJsonBody(response: Response): Promise<unknown> {
 }
 
 export const ReportSuccessSchema = ApiSuccess(Report);
+export const HistorySuccessSchema = ApiSuccess(HistoryPage);
+
+export interface HistoryQueryParams {
+  module?: Module;
+  status?: "completed" | "partial" | "failed";
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
+export async function getHistory(
+  params: HistoryQueryParams = {},
+  options: ApiRequestOptions = {}
+): Promise<HistoryPage> {
+  const query = new URLSearchParams();
+  if (params.module) query.set("module", params.module);
+  if (params.status) query.set("status", params.status);
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  if (params.page !== undefined) query.set("page", String(params.page));
+  if (params.limit !== undefined) query.set("limit", String(params.limit));
+
+  const queryString = query.toString();
+  const path = queryString ? `/api/scans?${queryString}` : "/api/scans";
+
+  return requestApi<HistoryPage>(
+    path,
+    (payload) => {
+      const parsed = HistorySuccessSchema.safeParse(payload);
+      if (!parsed.success || !parsed.data.data) {
+        return { success: false };
+      }
+      const page = HistoryPage.safeParse(parsed.data.data);
+      if (!page.success) {
+        return { success: false };
+      }
+      return { success: true, data: page.data };
+    },
+    options
+  );
+}
 
 async function parseErrorAndThrow(response: Response, payload: unknown): Promise<never> {
   const parsedError = ApiError.safeParse(payload);

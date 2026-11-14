@@ -7,6 +7,8 @@ export interface EmptyStateProps {
   description: string;
   icon?: LucideIcon;
   className?: string;
+  headingLevel?: "h2" | "h3";
+  children?: React.ReactNode;
 }
 
 export function EmptyState({
@@ -14,6 +16,8 @@ export function EmptyState({
   description,
   icon: Icon = FileSearch,
   className,
+  headingLevel: HeadingTag = "h2",
+  children,
 }: EmptyStateProps) {
   return (
     <div
@@ -25,8 +29,9 @@ export function EmptyState({
       <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground">
         <Icon className="h-5 w-5" aria-hidden="true" />
       </div>
-      <h3 className="mt-3 text-sm font-semibold text-foreground">{title}</h3>
+      <HeadingTag className="mt-3 text-sm font-semibold text-foreground">{title}</HeadingTag>
       <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>
+      {children ? <div className="mt-4">{children}</div> : null}
     </div>
   );
 }
