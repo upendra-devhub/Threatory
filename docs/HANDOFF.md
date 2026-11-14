@@ -1,10 +1,10 @@
 # HANDOFF
 
 ## Baton
-Current owner: upendra-devhub            Updated: 2026-11-14
-Status: READY
+Current owner: Sana                      Updated: 2026-11-14
+Status: IN PROGRESS
 Last completed: CP-10 (tag `cp-10-done`)
-Current checkpoint: CP-10 completed, next is CP-11
+Current checkpoint: CP-11 (History, report actions and dashboard)
 Current branch: `main`
 
 ## Exact next step
