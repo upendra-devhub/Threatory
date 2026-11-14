@@ -9,6 +9,8 @@ import { FindingGroup } from "./FindingGroup";
 import { getRenderableDetails } from "./format-details";
 import { LimitationsPanel } from "./LimitationsPanel";
 import { PartialBanner } from "./PartialBanner";
+import { ReportActions } from "./ReportActions";
+import { RetentionNotice } from "./RetentionNotice";
 
 const MODULE_LABELS: Record<Module, string> = {
   url: "URL Analyzer",
@@ -72,6 +74,12 @@ export function ReportView({ report, className }: ReportViewProps) {
 
   return (
     <div className={cn("space-y-6", className)}>
+      {/* Retention notice (CP-11 Task 6) */}
+      <RetentionNotice className="no-print" />
+
+      {/* Report actions toolbar (CP-11 Task 4) */}
+      <ReportActions report={report} />
+
       {/* 1. Report heading */}
       <header className="space-y-3 border-b border-border pb-4">
         <div className="flex flex-wrap items-center gap-2">

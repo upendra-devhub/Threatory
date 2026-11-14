@@ -36,3 +36,40 @@
   }
 }
 
+@media print {
+  /* Hide navigation, action bars, mobile drawers, and controls */
+  header,
+  nav,
+  aside,
+  button,
+  .no-print,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Ensure colors and borders are preserved */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure report sections and limitations avoid awkward page splits */
+  section,
+  article,
+  [aria-label="Scan limitations"] {
+    break-inside: avoid;
+  }
+}
+

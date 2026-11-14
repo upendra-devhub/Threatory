@@ -200,6 +200,13 @@ async function parseJsonBody(response: Response): Promise<unknown> {
 export const ReportSuccessSchema = ApiSuccess(Report);
 export const HistorySuccessSchema = ApiSuccess(HistoryPage);
 
+export const DeleteScanSuccessSchema = ApiSuccess(
+  z.object({
+    deleted: z.boolean(),
+    scanId: z.string(),
+  })
+);
+
 export interface HistoryQueryParams {
   module?: Module;
   status?: "completed" | "partial" | "failed";
@@ -313,6 +320,38 @@ export async function getReport(
     },
     options
   );
+}
+
+export async function deleteScan(
+  scanId: string,
+  options: ApiRequestOptions = {}
+): Promise<boolean> {
+  const trimmedScanId = scanId.trim();
+  if (trimmedScanId.length === 0) {
+    throw new ApiClientError({
+      code: "VALIDATION_ERROR",
+      status: 400,
+      serverMessage: "scanId parameter is required",
+      fields: [{ path: "scanId", message: "Report ID is required" }],
+    });
+  }
+
+  const result = await requestApi<{ deleted: boolean; scanId: string }>(
+    `/api/scans/${encodeURIComponent(trimmedScanId)}`,
+    (payload) => {
+      const parsed = DeleteScanSuccessSchema.safeParse(payload);
+      if (!parsed.success || !parsed.data.data) {
+        return { success: false };
+      }
+      return { success: true, data: parsed.data.data };
+    },
+    {
+      ...options,
+      method: "DELETE",
+    }
+  );
+
+  return result.deleted;
 }
 
 export async function submitUrlScan(

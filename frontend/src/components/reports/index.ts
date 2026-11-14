@@ -6,6 +6,7 @@ export { FindingGroup, formatCategoryHeading } from "./FindingGroup";
 export { LimitationsPanel } from "./LimitationsPanel";
 export { OutcomeBadge } from "./OutcomeBadge";
 export { PartialBanner } from "./PartialBanner";
+export { ReportActions } from "./ReportActions";
 export { ReportSkeleton } from "./ReportSkeleton";
 export { ReportView } from "./ReportView";
 export { SavedReportView } from "./SavedReportView";
