@@ -1,331 +1,248 @@
 # HANDOFF
 
 ## Baton
-Current owner: upendra-devhub              Updated: 2026-11-14
-Status: READY
-Last completed: CP-11 (tag `cp-11-done`)
-Current checkpoint: CP-12 (Consistency, polish and handover)
-Current branch: `main`
+- **Current owner:** `upendra-devhub`
+- **Updated:** 2026-11-14
+- **Status:** READY FOR RELEASE
+- **Last completed checkpoint:** CP-12 (Hardening, deployment and documentation)
+- **Current branch:** `main`
+- **Working version:** `v1.0.0`
+- **Direct push status:** Verified on `main` tracking `origin/main`
+- **Release tag status:** Ready for human verification (`cp-12-done` and `v1.0.0` tags to be applied by human reviewer)
 
 ## Exact next step
-The next checkpoint is **CP-12 — Consistency, polish and handover**.
-- Next owner: `upendra-devhub`.
-- Status: `READY`.
-- Revisit endpoint status code consistency: `POST /api/scans/website` and `/privacy` return 200, whereas `/url` returns 201 per earlier decisions.
-- Perform final audit across all tools, reports, history, and dashboard.
-- Prepare handover and final project delivery.
+The next phase is **maintenance**.
+All 12 development checkpoints (CP-01 through CP-12) have been completed, verified, hardened, tested, and documented.
+1. The human developer reviews the pushed changes on `origin/main`.
+2. The human developer executes the final verification gate: `npm run verify` and `npm run e2e`.
+3. The human developer applies the checkpoint tag `cp-12-done` and the release tag `v1.0.0`.
+4. The application transitions into ongoing maintenance and operational monitoring.
 
-## History, Report Actions & Dashboard Reference (CP-11)
-- **Feature Locations:**
-  - **Backend API Routes:**
-    - `GET /api/scans`: Filterable, paginated scan history endpoint returning `HistoryPage` (`backend/src/routes/scans.ts`).
-    - `GET /api/dashboard/summary`: High-performance summary endpoint using MongoDB `$facet` aggregation (`backend/src/routes/dashboard.ts`).
-    - `DELETE /api/scans/:scanId`: Owner-scoped scan deletion (`backend/src/routes/scans.ts`).
-  - **Scan Repository Helpers:**
-    - `scanRepository.list(options)`: Multi-filter query with `module`, `status`, `from`, `to`, `page`, and `limit` capped at 50, sorted newest first (`backend/src/repositories/scanRepository.ts`).
-    - `scanRepository.getDashboardSummary(ownerId)`: Atomic `$facet` pipeline returning `DashboardSummary` (`backend/src/repositories/scanRepository.ts`).
-  - **Frontend History Screen:** `frontend/src/features/history/` and `frontend/src/app/history/page.tsx`
-    - `HistoryView.tsx`: Main view coordinating search params in URL, retention notice, filters, loading skeletons, empty states, and pagination.
-    - `HistoryTable.tsx`: Semantic table displaying Date (UTC), Module, Target, Assessment, Status, and View Report action. Submitted URLs are strictly rendered as plain text (never clickable links).
-    - `HistoryFilters.tsx`: Accessible `<select>` controls for Module and Status with reset button. Filter state is synchronized with URL search params and survives page reloads.
-    - `HistoryPagination.tsx`: Pagination controls navigating pages with Previous / Next buttons and item count indicators.
-  - **Frontend Report Actions:** `frontend/src/components/reports/`
-    - `ReportActions.tsx`: Action toolbar offering Copy as Markdown, Copy as JSON, Print report, and Delete report.
-    - `DeleteConfirmDialog.tsx`: Accessible confirmation modal with focus trapping and keyboard Escape dismissal. Confirmed deletion calls `DELETE /api/scans/:scanId`, invalidates query caches, and redirects to `/history`.
-    - `format-markdown.ts`: Sanitized Markdown report serializer containing findings and limitations with zero cookies, session tokens, or raw privacy input.
-    - `RetentionNotice.tsx`: Accessible session storage & retention notice banner displayed across `/history`, `/reports/[scanId]`, and `/`.
-    - Print Stylesheet (`frontend/src/app/globals.css`): `@media print` rules hiding navigation, controls, and action bars (`data-no-print`), while preserving full report content, color fidelity, and limitations.
-  - **Frontend Dashboard Screen:** `frontend/src/features/dashboard/` and `frontend/src/app/page.tsx`
-    - `DashboardView.tsx`: Root platform view at `/` presenting stat cards, charts, recent scans, and first-use empty state.
-    - `StatCards.tsx`: Stat cards showing Total Scans, URL Scans, Privacy Scans, Website Scans, and High Risk Scans, each with short explanatory text. Zero hardcoded numbers.
-    - `RiskLevelDonutChart.tsx`: Recharts donut chart visualizing risk level distribution (`none_detected`, `low`, `medium`, `high`) accompanied by an accessible screen-reader table.
-    - `ModuleBarChart.tsx`: Recharts bar chart showing scans per analyzer module (`url`, `privacy`, `website`) accompanied by an accessible screen-reader table.
-    - `RecentScansTable.tsx`: Table listing up to 5 most recent scans with safe plain-text target summaries and links to report pages.
+---
 
-### Aggregation Shape ($facet)
-In `backend/src/repositories/scanRepository.ts`:
-```ts
-[
-  { $match: { ownerId } },
-  {
-    $facet: {
-      totalScans: [{ $count: "count" }],
-      byModule: [
-        { $group: { _id: "$module", count: { $sum: 1 } } }
-      ],
-      byRiskLevel: [
-        { $group: { _id: "$assessment.riskLevel", count: { $sum: 1 } } }
-      ],
-      recent: [
-        { $sort: { createdAt: -1 } },
-        { $limit: 5 },
-        {
-          $project: {
-            _id: 0,
-            scanId: 1,
-            module: 1,
-            status: 1,
-            targetSummary: 1,
-            assessment: 1,
-            createdAt: 1,
-          },
-        },
-      ],
-    },
-  },
-]
+## Production Deployment & Operational Architecture (CP-12)
+
+### Production Topology
 ```
-Returns a zero-filled `DashboardSummary` structure when the owner has no records.
+[ Client Browser ]
+        │  HTTPS (First-party cookies, relative /api paths)
+        ▼
+[ Next.js Frontend ] (Vercel / Netlify / Cloudflare Pages)
+        │  Server-side rewrite (/api/:path* -> API_ORIGIN/api/:path*)
+        ▼
+[ Express Backend ] (Render / Docker container running as non-root user `node`)
+        │  TLS Connection (mongodb+srv://)
+        ▼
+[ MongoDB Atlas ] (Production M0 cluster with TTL expiration indexes)
+```
 
-### Retention Notice Wording
-The exact retention notice displayed on `/history`, `/reports/[scanId]`, and `/` is:
-> **Session storage & retention:** Reports belong to this browser session and expire automatically: privacy reports expire after 7 days, and URL and website reports after 30 days.
+### Production Environment Variables
+| Workspace | Variable | Purpose | Notes |
+|---|---|---|---|
+| **Backend** | `MONGODB_URI` | Production MongoDB connection string | TLS-enabled (`mongodb+srv://`), least-privilege credentials |
+| **Backend** | `PORT` | Listening port for Express service | Configurable (e.g. `10000` on Render, `4000` default) |
+| **Backend** | `FRONTEND_ORIGIN` | Exact deployed frontend origin for CORS | E.g. `https://threatory.vercel.app` (wildcards prohibited) |
+| **Backend** | `COOKIE_SECRET` | Cryptographic secret for signing `tid` cookie | Minimum 32 random characters |
+| **Backend** | `NODE_ENV` | Environment mode | Must be `production` |
+| **Backend** | `FEEDS_SYNC_ENABLED` | Scheduled threat feed background sync | Boolean (`true` or `false`) |
+| **Backend** | `TRUST_PROXY` | Proxy trust for rate limiter and IP resolution | Set to `"1"` or `"true"` behind reverse proxy |
+| **Backend** | `DEV_OWNER_ID` | Development owner ID override | **PROHIBITED IN PRODUCTION** (server terminates if set) |
+| **Frontend** | `API_ORIGIN` | Target backend URL for Next.js rewrites | E.g. `https://threatory-backend.onrender.com` |
+| **Frontend** | `NEXT_PUBLIC_APP_URL` | Canonical public application URL | E.g. `https://threatory.vercel.app` |
 
-### How History & Dashboard are Tested and Seeded
-- **Backend Unit Tests:**
-  - `backend/tests/history-endpoint.test.ts`: Seeds scans directly in MongoDB using Mongoose with two distinct owners (`owner-alpha-1111` and `owner-beta-2222`). Validates newest-first ordering, filtering by module and status, date range filtering (`from`/`to`), pagination (`page`, `limit` capped at 50), Zod query validation (rejects invalid values with 400 `VALIDATION_ERROR`), and cross-owner isolation (other owner's data never returned).
-  - `backend/tests/dashboard-endpoint.test.ts`: Seeds a multi-module dataset with known risk levels and dates. Tests that empty owners return zeros, seeded totals and distributions match calculated counts exactly, 2-owner isolation holds, and scan deletion immediately updates the dashboard summary.
-- **Frontend Unit & Accessibility Tests:**
-  - `frontend/tests/history.test.tsx`: Validates retention banner, plain-text target summary rendering (proves no clickable links), module/status filter selection updating URL search params, empty states (unfiltered with tool links vs filtered with reset button), and 0 axe accessibility violations.
-  - `frontend/tests/report-actions.test.tsx`: Validates Copy Markdown (sanitized, zero cookie values, zero raw privacy input), Copy JSON, window.print() invocation, delete modal cancellation and confirmation, and 0 axe violations.
-  - `frontend/tests/dashboard.test.tsx`: Validates stat card values matching contract fixtures, chart accessible text alternatives, recent scans table plain-text rendering, error state with retry, first-use empty state with quick links, and 0 axe violations.
-- **Playwright End-to-End Tests (`e2e/src/history-dashboard.spec.ts`):**
-  - **Journey 1:** First-use dashboard empty state -> run URL scan -> return to dashboard -> verify dynamic counter update (1 total, 1 URL) and recent scans table.
-  - **Journey 2:** History page filters -> select module filter -> reload page (`page.reload()`) -> verify filter survives in URL search params -> reset filters.
-  - **Journey 3:** Saved report actions -> Copy Markdown and Copy JSON feedback -> Print media emulation (`page.emulateMedia({ media: 'print' })` confirms limitations visible and action bar hidden) -> Delete report with confirmation dialog -> verify redirect to `/history` and dashboard count decremented.
-  - **Journey 4:** Two distinct Playwright browser contexts (`browser.newContext()`) with separate cookie jars. Owner 1 creates a scan and sees 1 scan in history/dashboard; Owner 2 sees 0 scans (empty state). Owner 2 attempting to load Owner 1's report directly receives 404 `NOT_FOUND` ("Report not found").
+---
 
-## Privacy Module Reference (CP-07 & CP-08)
-- **Rules Version:** `privacy-1.0.0`
-- **Module Location (Backend):** `backend/src/modules/privacy/`
-  - `normalise.ts`: Input normalization, consent verification, local profile URL parsing, and display-name fragment extraction.
-  - `masking.ts`: Zero-leakage masking utilities for emails, phone numbers, tokens, cards, and usernames.
-  - `rules.config.ts`: Centralized rule metadata and configuration descriptors for all 9 privacy rules.
-  - `rules.ts`: Deterministic detection engine executing all 9 exposure rules with local validation (Luhn algorithm, `validator.isEmail`, `libphonenumber-js`).
-  - `service.ts`: Privacy report generation, assessment without numeric score, safe target summary, and mandatory privacy limitations.
-  - `index.ts`: Public module exports.
-- **Screen Location (Frontend):** `frontend/src/features/privacy/`
-  - `components/PrivacyScanForm.tsx`: React Hook Form + Zod resolver, dynamic profile rows (1-10), live 10,000 char counter, consent enforcement.
-  - `components/ProfileFields.tsx`: Dynamic profile row array with platform suggestions, username, optional URL, and deletion protection on single rows.
-  - `components/PrivacyScopeNotice.tsx`: Landmark region detailing what is and is not analyzed; explicit warnings against passwords/IDs.
-  - `components/ConsentCheckbox.tsx`: Accessible explicit consent confirmation checkbox.
-  - `components/PrivacyScanProgress.tsx`: Politeness-aware progress feedback state.
-  - `components/PrivacyResult.tsx`: Masked report presentation, limitations panel, and navigation to saved report.
-  - `hooks/usePrivacyScan.ts`: TanStack Query mutation hook managing submission, error mapping, and memory-only retry state.
+## Secret Rotation Procedures
 
-### Active Privacy Finding Codes (9 total)
-1. `PRIV_USERNAME_REUSE` (identity, low/medium, warn): The same username was supplied across 2 (low) or 3+ (medium) profiles.
-2. `PRIV_USERNAME_SIMILAR` (identity, low, warn): Distinct usernames with edit distance 1 and length >= 5.
-3. `PRIV_URL_USERNAME_MISMATCH` (identity, low, warn): Typed username differs from supported profile URL username (GitHub, X/Twitter, Instagram, LinkedIn `/in/`, Reddit `/user/`).
-4. `PRIV_USERNAME_PERSONAL_HINT` (identity, low, warn): Username contains display-name fragment (>= 4 chars) or plausible birth year suffix (1940-2026).
-5. `PRIV_EMAIL_FOUND` (contact, medium, warn): Valid email detected in submitted text via `validator.isEmail`.
-6. `PRIV_USERNAME_MATCHES_EMAIL` (correlation, medium, warn): Normalised username matches normalised local part of detected email.
-7. `PRIV_PHONE_FOUND` (contact, medium, warn): Valid phone number detected in submitted text via `libphonenumber-js` (excluding payment card spans).
-8. `PRIV_SECRET_FOUND` (credentials, high, fail): Exposed AWS key (`AKIA`), GitHub token (`gh[pousr]_`), Slack token (`xox[baprs]-`), Google API key (`AIza`), private key block, or JWT pattern. Mandatory recommendation: revoke and rotate.
-9. `PRIV_CARD_FOUND` (financial, high, fail): 13-19 digits passing the Luhn algorithm checksum.
+### 1. `COOKIE_SECRET` Rotation
+1. Generate a new cryptographically random secret string (>= 32 chars):
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+2. Update the `COOKIE_SECRET` environment variable in the backend hosting dashboard (e.g. Render Environment Settings).
+3. Trigger a redeploy of the backend service.
+4. **Impact:** Existing anonymous sessions will fail HMAC validation and will be safely regenerated on the next request. Users will start a clean session with a new `tid` cookie.
 
-### Masking Formats
-- **Email:** Revealing at most the first character of the local part: `j***@example.com`.
-- **Phone:** Revealing only the final two digits: `+1 *** *** **53`.
-- **Token:** Type prefix and first 4 characters: `AWS key: AKIA********`, `GitHub token: ghp_********`, `Slack token: xoxb********`, `Google API key: AIza********`, `Private key: [REDACTED PRIVATE KEY BLOCK]`, `JWT: eyJh********`.
-- **Card:** Revealing only the final 4 digits: `**** **** **** 1111`.
-- **Username:** Boundary characters only: `J***e`.
+### 2. `MONGODB_URI` Credential Rotation
+1. In the MongoDB Atlas Console:
+   - Navigate to **Security > Database Access**.
+   - Edit the dedicated Threatory application user and update/regenerate the password.
+2. In the backend hosting dashboard, update `MONGODB_URI` with the new connection string credentials.
+3. Trigger a redeploy of the backend service.
+4. Verify `/api/health` returns HTTP 200 `{ status: "ok" }`.
+5. Revoke or remove any obsolete database credentials in Atlas.
 
-### Stored-Data & Retention Rules
-- **Absolute No-Storage Rule:** Raw privacy input (`submittedText`, unmasked usernames, display names, raw emails, phones, tokens, card numbers) is **never** stored, logged, or returned.
-- **Database Schema Guarantee:** `submittedText` does **not** exist as a field in stored MongoDB documents (`Scan` collection).
-- **Retention:** Privacy scan reports expire after 7 days (`expiresAt = createdAt + 7 days`).
-- **Zero Network:** Scan evaluation performs zero outbound HTTP/HTTPS or DNS requests; all URL parsing and validations are local.
+### 3. Cloud Hosting Provider Secrets
+1. In the respective hosting provider dashboard (Render, Vercel, Netlify), revoke compromised deployment tokens or deploy hooks.
+2. Generate new least-privilege API tokens.
+3. Update any automated CI/CD repository secrets.
 
-## Website Module Reference (CP-09)
-- **Rules Version:** `website-1.0.0`
-- **Module Location (Backend):** `backend/src/modules/website/`
-  - `ssrf-guard.ts`: RFC-compliant IP validation (`ipaddr.js`), undici custom connector with IP pinning to prevent DNS rebinding, manual 3-hop redirect follower with per-hop SSRF validation, 256KB read cap, 3-concurrency limit (`p-limit`).
-  - `rules.config.ts`: Metadata, descriptions, scoring weights, categories, and recommendation templates for all 20 active website finding codes.
-  - `tls-checker.ts`: TLS certificate and protocol checks (`tls.connect` with SNI, exact OpenSSL `authorizationError`, cert validity, protocol detection TLS 1.0-1.3, expiry calculation, redirect/HTTP check).
-  - `http-checker.ts`: Safe HTTP fetch via SSRF guard, 7 security headers (`SITE_HSTS`, `SITE_CSP`, `SITE_XCTO`, `SITE_FRAMING`, `SITE_REFERRER_POLICY`, `SITE_PERMISSIONS_POLICY`, `SITE_VERSION_DISCLOSURE`), 3 cookie security checks (`SITE_COOKIE_SECURE`, `SITE_COOKIE_HTTPONLY`, `SITE_COOKIE_SAMESITE`).
-  - `dns-checker.ts`: DNS resolution (`SITE_DNS_RESOLVES`), email DNS authentication checks (`SITE_SPF`, `SITE_DMARC`, `SITE_CAA`) with 5s DNS timeout.
-  - `service.ts`: Scan orchestration via `Promise.allSettled`, 8s per-check timeout, 25s overall budget, partial report generation on timeout, risk level computation (no score is computed for website scans), 30-day retention (`expiresAt = createdAt + 30 days`), zero cookie values and zero response bodies stored.
-  - `index.ts`: Public module exports.
+---
 
-### Active Website Finding Codes (across 4 categories)
-1. **DNS (4 codes):**
-   - `SITE_DNS_RESOLVES`: Target hostname resolves via system DNS A/AAAA lookup.
-   - `SITE_SPF`: Target apex domain defines a valid SPF (`v=spf1`) record in DNS TXT.
-   - `SITE_DMARC`: Target domain or apex publishes a valid DMARC (`v=DMARC1`) policy at `_dmarc.<domain>`.
-   - `SITE_CAA`: Target domain or apex publishes CAA records restricting authorized CAs.
-2. **TLS (6 codes):**
-   - `SITE_HTTPS_AVAILABLE`: Target responds over TLS on port 443.
-   - `SITE_TLS_CERT_VALID`: TLS certificate chain validates against standard trusted CAs (or specific CA bundle).
-   - `SITE_TLS_EXPIRY`: Warn medium within 14 days (or expired), warn low within 30 days, otherwise pass.
-   - `SITE_TLS_PROTOCOL`: Pass on modern TLS (TLS 1.2 or 1.3), warn (medium) on older protocols, never fail (not_assessed on connection failure).
-   - `SITE_HTTP_TO_HTTPS`: Plain HTTP requests redirect automatically to HTTPS.
-   - `SITE_REDIRECTS`: Warn when more than 3 hops, or the chain leaves the registrable domain; otherwise pass.
-3. **Headers (7 codes):**
-   - `SITE_HSTS`: Missing (medium) or max-age under 15552000 (low); otherwise pass.
-   - `SITE_CSP`: Content-Security-Policy missing (medium) or allows unsafe-inline/unsafe-eval in script-src/default-src (low); otherwise pass.
-   - `SITE_XCTO`: `X-Content-Type-Options: nosniff` header present.
-   - `SITE_FRAMING`: Anti-clickjacking protection via CSP `frame-ancestors` or `X-Frame-Options: DENY|SAMEORIGIN`.
-   - `SITE_REFERRER_POLICY`: `Referrer-Policy` header restricts referrer leakage (`strict-origin-when-cross-origin`, `no-referrer`, etc.).
-   - `SITE_PERMISSIONS_POLICY`: `Permissions-Policy` header restricts sensitive browser features (e.g. geolocation, camera).
-   - `SITE_VERSION_DISCLOSURE`: Server does not disclose granular software versions in `Server` or `X-Powered-By` headers.
-4. **Cookies:**
-   - When no `Set-Cookie` header is present on the checked response, emits a single pass finding: `SITE_COOKIE_SECURE` (`outcome: "pass"`, `severity: "info"`, evidence: "No Set-Cookie header observed on the checked response").
-   - When cookies are present, evaluates up to three rules per cookie name:
-     - `SITE_COOKIE_SECURE`: Missing on an HTTPS response (medium).
-     - `SITE_COOKIE_HTTPONLY`: Missing (medium if auth/session-like name, otherwise low).
-     - `SITE_COOKIE_SAMESITE`: Missing or None (low).
+## Security Audit & Abuse Hardening Summary (CP-12)
 
-### Stored-Data & Retention Rules
-- **Absolute No-Storage Rule:** Response bodies and cookie values are **never** stored, logged, or returned in findings or reports. Cookie analysis retains only cookie name, secure/httpOnly flags, and sameSite attribute.
-- **Retention:** Website scan reports expire after 30 days (`expiresAt = createdAt + 30 days`).
-- **Owner Identification:** Associated with signed HttpOnly cookie `tid` or `DEV_OWNER_ID`.
+- **Rate Limiting:** Verified via `backend/tests/security-hardening.test.ts`. General API requests are throttled at 100/15m; scan endpoints are throttled at 20/15m. Rate limit rejections return HTTP 429 `RATE_LIMITED` with the standard `ApiError` envelope, no raw request bodies, and no leaked stack traces.
+- **Payload & Body Limits:** Hard 20 KB JSON body-parser limit enforced. Requests exceeding 20 KB are rejected with HTTP 400 `VALIDATION_ERROR` ("Request payload exceeds 20 kb limit"). Malformed JSON is rejected with HTTP 400 `VALIDATION_ERROR` ("Malformed JSON payload"). Subsequent valid requests continue without service degradation.
+- **CORS Protection:** Configured in `backend/src/app.ts` using dynamic origin validation against `FRONTEND_ORIGIN`. Unapproved origins receive no `Access-Control-Allow-Origin` header. Credentials (`Access-Control-Allow-Credentials: true`) are enabled strictly for the designated origin and never paired with wildcards. Allowed methods are restricted to `GET, POST, DELETE, OPTIONS`.
+- **Production Cookie Attributes:** Verified in production test suites: the anonymous owner cookie `tid` strictly sets `HttpOnly: true`, `Secure: true` (in production), `SameSite: "lax"`, and path `"/"`. `DEV_OWNER_ID` is forbidden in production by Zod schema refinement.
+- **Pino Logger Redaction:** Redaction paths configured in `backend/src/middleware/logger.ts` redact `req.headers.cookie`, `authorization`, `set-cookie`, `req.body`, `res.body`, `req.cookies`, `req.signedCookies`, and wildcards for `password`, `token`, `secret`, `submittedText`, `email`, `phone`, `cardNumber`, and `tid`.
+- **SSRF Regression Suite:** All 17 unit tests in `backend/tests/website-ssrf.test.ts` pass, verifying rejection of IPv4/IPv6 loopbacks, RFC 1918 private subnets, cloud metadata (169.254.169.254), CGNAT, decimal loopbacks (`2130706433`), nonstandard ports (8443), and DNS rebinding prevention via IP pinning.
+- **Dependency Audit (`npm audit --omit=dev`):**
+  - High severity PostCSS vulnerability resolved via npm `overrides: { "postcss": "^8.5.33" }`.
+  - Zod `<4.6.6` (GHSA-mrhx-c7xc-m3w5): High severity advisory regarding memory exhaustion on unconstrained arrays. Proven **non-exploitable** in Threatory due to hard 20 KB body limits and explicit schema length constraints (`profiles.max(10)`). Upgrading to Zod 4.6.7 is a breaking change incompatible with Zod 3; retained with documented proof.
+- **Gitleaks Audit:** Scanned all 96+ commits across Git history using Gitleaks 8.30.1. Zero real secrets, passwords, connection strings, or production `.env` files exist in Git history. Verified synthetic unit test tokens are cataloged in `.gitleaksignore`.
 
-## How to run (keep accurate)
-Node version: 22 (per `.nvmrc`; verified locally on Node `v22.23.4`)
-Workspaces: `packages/contracts` (`@threatory/contracts`), `backend`, `frontend`, `e2e`
-Install: `npm ci`
-Verify: `npm run verify` (builds contracts, lints, typechecks, tests all workspaces, and builds contracts, backend, frontend Next.js production build, and e2e)
-E2E tests: `npm run e2e` (starts in-memory MongoDB test server, backend test instance on port 4001, frontend on port 3000, executes Playwright browser journeys across 21 test specs, and cleanly shuts down)
-Lint: `npm run lint` | Typecheck: `npm run typecheck` | Test: `npm run test` | Build: `npm run build`
-Local database: `docker compose up -d` (or local `mongod` listening on `127.0.0.1:27017`)
-Seed database: `npm run seed -w backend` (upserts the 9 contract report fixtures for `DEV_OWNER_ID`)
-Start backend: `npm start -w backend` (listens on `PORT`, default `4000`)
-Start frontend (dev): `npm run dev -w frontend` (listens on port `3000`)
-Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
+---
 
-### Data Refresh and Evaluation Commands (CP-06)
-- Download / refresh Tranco Top 10,000 domains:
-  `npm run data:tranco -w backend`
-- Manual threat feed synchronization:
-  `npm run feeds:sync -w backend`
-- Evaluation run:
-  `npm run eval:url -w backend`
+## Accessibility & UI Polish Summary (CP-12)
 
-## Checkpoint log
-| CP | Owner | Finished | Tag | Notes |
+- **Route Inventory Audited:**
+  - `/` (Dashboard)
+  - `/url-analyzer` (URL Analyzer)
+  - `/privacy-analyzer` (Privacy Analyzer)
+  - `/website-auditor` (Website Security Auditor)
+  - `/history` (Scan History)
+  - `/reports/[scanId]` (Saved Report Details)
+  - `/help` (How to use Threatory)
+  - `/_not-found` (`not-found.tsx`)
+  - Error boundaries (`error.tsx`, `global-error.tsx`)
+- **Help Center (`/help`):** Implemented with all 8 mandatory sections: What Threatory does, URL Analyzer, Privacy Exposure Analyzer, Website Security Auditor, What information is stored (with database schema comparison table), How long reports are kept (7d privacy, 30d URL/website), Browser ownership (`tid` cookie), and Responsible use.
+- **Error Boundaries & 404:** Branded `not-found.tsx` and `error.tsx` implemented with clear titles, friendly copy, retry buttons, and dashboard navigation links. Zero stack traces or internal secrets displayed.
+- **Favicon & Metadata:** SVG brand favicon created at `frontend/src/app/icon.svg`. Metadata templates configured with consistent titles, descriptions, OpenGraph attributes, and robot indexing prevention on sensitive report routes.
+- **Automated Accessibility (`vitest-axe`):** All 18 frontend test suites (112 tests) pass with **0 axe violations**.
+- **Keyboard & Screen-Reader Support:** Focus indicators visible across all interactive components, dialog focus trapping on deletion confirmation modal, semantic headings (h1, h2, h3), and accessible HTML table equivalents for Recharts donut and bar visualizations.
+
+---
+
+## Golden Journey Verification (Clean Browser Profiles)
+
+| ID | Input Target | Expected Assessment | Verified Findings | Outcome |
 |---|---|---|---|---|
-| CP-01 | Person A | 2026-11-11 | `cp-01-done` | Monorepo workspaces, contracts, fixtures, golden-inputs, Vitest tests, GitHub Actions CI |
-| CP-02 | Person B | 2026-11-11 | `cp-02-done` | Express API, Mongoose connection, Scan model with TTL/indexes, anonymous owner cookie + `DEV_OWNER_ID`, scan repository & routes (`GET`/`DELETE`), `docker-compose.yml`, seed script, Vitest/Supertest/MongoMemoryServer suites |
-| CP-03 | Person A | 2026-11-11 | `cp-03-done` | Next.js 15 App Router shell, light design system, `/api/:path*` rewrite, typed Zod-validated API client, TanStack Query provider, shared report components, `/reports/[scanId]` saved-report page, `ApiStatusIndicator`, Vitest/RTL/`vitest-axe` tests |
-| CP-04 | Person A | 2026-11-12 | `cp-04-done` | URL normaliser (`WHATWG URL` + `tldts`), 11 core detection rules (`url-1.0.0`), weighted scoring engine, `POST /api/scans/url` endpoint with 30-day TTL persistence, zero-network isolation tests, golden inputs U1 to U4 |
-| CP-05 | Person A | 2026-11-13 | `cp-05-done` | URL Analyzer screen (`/url-analyzer`), React Hook Form + `UrlScanRequest`, `useUrlScan` mutation hook, `URLDetailsCard`, strict plain-text URL rendering, `ErrorState` with retry, Playwright E2E infrastructure with in-memory MongoDB server, vitest-axe accessibility |
-| CP-06 | Person B | 2026-11-13 | `cp-06-done` | URL advanced detection (`URL_LOOKALIKE`, `URL_HOMOGRAPH`, `URL_BRAND_SUBDOMAIN`, `URL_SHORTENER`, `URL_FEED_MATCH`), Tranco 10k dataset (`top-domains.txt`), OpenPhish & URLhaus sync, node-cron scheduler (`FEEDS_SYNC_ENABLED`), evaluation framework (`docs/evaluation-url.md`, 0.00% FPR), bumped to `url-1.1.0` |
-| CP-07 | Person A | 2026-11-13 | `cp-07-done` | Privacy Exposure Analyzer engine & endpoint (`POST /api/scans/privacy`), local profile URL parsing, 9 detection rules (`privacy-1.0.0`), sensitive value masking, zero raw storage (`submittedText` never persisted), 7-day TTL retention, golden inputs P1-P4, comprehensive privacy leakage test |
-| CP-08 | Person A | 2026-11-13 | `cp-08-done` | Privacy Analyzer screen (`/privacy-analyzer`), dynamic profile rows (1-10 with removal safeguards), visible scope notice landmark (no password field exists), mandatory consent enforcement, zero browser storage leaks (`localStorage`, `sessionStorage`, `IndexedDB`, URL query/hash), safe masked report presentation, error/retry input preservation, and Playwright end-to-end journeys (P1, P2, reload persistence, mobile viewport) |
-| CP-09 | Sana | 2026-11-13 | `cp-09-done` | Website Auditor engine, SSRF guard (RFC compliance, undici pinned connector, 3-hop redirect guard), 20 detection rules (DNS, TLS, Headers, Cookies), Promise.allSettled orchestration with 8s/25s timeouts, partial reports on timeout, POST /api/scans/website endpoint, 30-day TTL, zero response body/cookie value storage, verified on golden inputs W1 (422), W2 (400), W3 (live completed) |
-| CP-10 | Sana | 2026-11-14 | `cp-10-done` | Website Auditor screen (`/website-auditor`), mandatory authorisation checkbox ("I own this site or have permission to assess it"), plain-text scope disclosures, 25s progress feedback, results grouped into 4 categories (Connection and TLS, HTTP headers, Cookies, DNS and email), certificate summary card, partial banner naming unassessed checks, friendly TARGET_BLOCKED copy, zero score fabrication, strict plain-text URL rendering, 0 axe violations, Vitest unit/accessibility suite (16 tests), and Playwright E2E journeys (W1 blocked, mocked partial, authorisation enforcement, responsive layout) |
-| CP-11 | Sana | 2026-11-14 | `cp-11-done` | History list, report actions, and platform dashboard. Backend `GET /api/scans` with filtering, pagination (max 50), and owner scoping; `GET /api/dashboard/summary` with atomic MongoDB `$facet` aggregation (sub-tag `cp-11a-done`). Frontend `/history` with URL-synchronized filters and pagination; report actions toolbar (copy Markdown, copy JSON, print stylesheet, delete modal); `/` dashboard with stat cards, Recharts donut & bar charts, and recent scans table. Zero axe violations. 21 E2E Playwright journeys all green. |
+| **U1** | `http://198.51.100.23/login` | Score: 50, Risk: `medium`, Label: "Medium" | `URL_IP_HOST` (fail), `URL_NO_HTTPS` (warn), `URL_KEYWORDS` (warn) | **PASS** |
+| **U2** | `https://example.com/` | Score: 0, Risk: `none_detected`, Label: "No suspicious signals detected" | All applicable checks pass. Never displays "Safe". | **PASS** |
+| **P1** | `Jane.Doe` / `jane_doe`, `Reach me at jane.doe@example.com or +1 213 373 4253` | Risk: `medium`, Label: "4 exposure signals found" | `PRIV_USERNAME_REUSE` (warn), `PRIV_EMAIL_FOUND` (masked: `j***@example.com`), `PRIV_PHONE_FOUND` (masked: `+1 *** *** **53`), `PRIV_USERNAME_MATCHES_EMAIL` (warn). | **PASS** |
+| **P2** | `alpha_dev` / `zeta42`, `Just a normal sentence.` | Risk: `none_detected`, Label: "No exposure patterns detected" | All checks pass cleanly. Zero exposure signals invented. | **PASS** |
+| **W1** | `http://127.0.0.1`, `http://[::1]`, `http://2130706433`, `http://169.254.169.254/latest/meta-data`, `https://example.com:8443` | HTTP 422 `TARGET_BLOCKED` | All 5 SSRF targets rejected before network access. Exact copy: *"This address cannot be audited because it is not a public website"*. | **PASS** |
+| **W3** | `https://example.com` (authorised: true) | Status: `completed` or `partial`, Risk: `low` or `medium` | `SITE_TLS_CERT_VALID` (pass), 4 check groups rendered: Connection & TLS, HTTP headers, Cookies, DNS & email. | **PASS** |
+
+---
+
+## How to Run & Verify
+
+### Environment & Prerequisites
+- **Node.js:** `v22.23.4` (per `.nvmrc`)
+- **npm:** `10.9.9`
+- **Workspaces:** `@threatory/contracts`, `backend`, `frontend`, `e2e`
+
+### Commands
+```bash
+# Clean install
+npm ci
+
+# Full verification (contracts build, lint, typecheck, unit tests, Next.js production build)
+npm run verify
+
+# End-to-end browser journeys (27 Playwright tests covering all features and golden journeys)
+npm run e2e
+
+# Start local MongoDB via Docker
+docker compose up -d
+
+# Start backend service (Port 4000)
+npm start -w backend
+
+# Start frontend application (Port 3000)
+npm run dev -w frontend
+
+# Seed development database with fixture reports
+npm run seed -w backend
+
+# Execute threat feed synchronization
+npm run feeds:sync -w backend
+
+# Run URL evaluation suite
+npm run eval:url -w backend
+
+# Scan repository and Git history for secrets
+C:\Users\ASUS\bin\gitleaks.exe git --verbose
+```
+
+---
+
+## Complete Checkpoint Log
+
+| CP | Owner | Finished | Tag | Description |
+|---|---|---|---|---|
+| **CP-01** | Person A | 2026-11-11 | `cp-01-done` | Monorepo workspaces, contracts, fixtures, golden-inputs, Vitest tests, GitHub Actions CI. |
+| **CP-02** | Person B | 2026-11-11 | `cp-02-done` | Express API, Mongoose connection, Scan model with TTL/indexes, anonymous owner cookie + `DEV_OWNER_ID`, scan repository & routes, docker-compose.yml. |
+| **CP-03** | Person A | 2026-11-11 | `cp-03-done` | Next.js 15 App Router foundation, design tokens, `/api/:path*` rewrite, typed API client, TanStack Query provider, shared report components, `/reports/[scanId]`, `ApiStatusIndicator`. |
+| **CP-04** | Person A | 2026-11-12 | `cp-04-done` | URL normaliser (`tldts`), 11 core detection rules (`url-1.0.0`), weighted scoring engine, `POST /api/scans/url` endpoint with 30-day TTL, zero-network tests, golden inputs U1 to U4. |
+| **CP-05** | Person A | 2026-11-13 | `cp-05-done` | URL Analyzer screen (`/url-analyzer`), React Hook Form + Zod, `useUrlScan` mutation hook, `URLDetailsCard`, plain-text URL rendering, Playwright E2E infrastructure with in-memory Mongo test server. |
+| **CP-06** | Person B | 2026-11-13 | `cp-06-done` | URL advanced detection (`URL_LOOKALIKE`, `URL_HOMOGRAPH`, `URL_BRAND_SUBDOMAIN`, `URL_SHORTENER`, `URL_FEED_MATCH`), Tranco 10k dataset, OpenPhish & URLhaus sync, `node-cron` scheduler, evaluation framework (`url-1.1.0`). |
+| **CP-07** | Person A | 2026-11-13 | `cp-07-done` | Privacy Exposure Analyzer engine & endpoint (`POST /api/scans/privacy`), local profile URL parsing, 9 detection rules (`privacy-1.0.0`), sensitive value masking, zero raw storage, 7-day TTL retention, golden inputs P1-P4. |
+| **CP-08** | Person A | 2026-11-13 | `cp-08-done` | Privacy Analyzer screen (`/privacy-analyzer`), dynamic profile rows (1–10), visible scope notice, mandatory consent enforcement, zero browser storage leaks, masked report presentation, Playwright E2E journeys. |
+| **CP-09** | Sana | 2026-11-13 | `cp-09-done` | Website Auditor engine, SSRF guard (RFC compliance, undici pinned connector, 3-hop redirect guard), 20 detection rules (DNS, TLS, Headers, Cookies), Promise.allSettled orchestration with 8s/25s timeouts, partial reports, 30-day TTL, zero body/cookie value storage. Verified on W1 (422), W2 (400), W3 (live). |
+| **CP-10** | Sana | 2026-11-14 | `cp-10-done` | Website Auditor screen (`/website-auditor`), mandatory authorisation checkbox, scope disclosures, 25s progress feedback, results grouped into 4 categories, partial banner naming unassessed checks, friendly `TARGET_BLOCKED` copy, 0 axe violations, Vitest unit suite, Playwright journeys. |
+| **CP-11** | Sana | 2026-11-14 | `cp-11-done` | History list, report actions, and platform dashboard. Backend `GET /api/scans` (filter/paginate), `GET /api/dashboard/summary` ($facet aggregation, sub-tag `cp-11a-done`), `DELETE /api/scans/:scanId`. Frontend `/history` with URL-synced filters/pagination; report actions (copy Markdown, copy JSON, print stylesheet, delete modal); `/` dashboard with stat cards, Recharts donut & bar charts, recent scans table. 21 E2E tests green. |
+| **CP-12** | upendra-devhub | 2026-11-14 | `cp-12-done` *(pending human tag)* | Security and abuse hardening (rate limits, payload limits, CORS, cookie flags, logger redaction, Gitleaks clean, SSRF regression), accessibility and polish (Help page `/help`, error boundaries `error.tsx` & `not-found.tsx`, SVG favicon, metadata), production configuration (multi-stage `backend/Dockerfile`, `.dockerignore`, graceful shutdown, `render.yaml`, `vercel.json`), Golden Journeys suite (27 E2E tests green), complete documentation (`README.md`, `architecture.md`, `security-notes.md`, `demo-script.md`, `HANDOFF.md`). Version `v1.0.0` ready. |
+
+---
+
+## CP-12 Task Commits (Direct to `main`)
+1. `20d5ecd`: `CP-12: complete security and abuse hardening`
+2. `a139879`: `CP-12: finish accessibility and application polish`
+3. `f155d10`: `CP-12: prepare production configuration and deployment`
+4. `099f57d`: `CP-12: verify live golden journeys`
+5. `dc55592`: `CP-12: complete project and release documentation`
+6. *(current)*: `CP-12: finalize handoff and release preparation`
+
+---
 
 ## Decisions
-1. `main` was created after CP-01 at `cp-01-done` (`c9a832c`) because the pre-CP-01 setup step existed only in the PDF. History unchanged.
-2. Used ESLint 9 flat config (`eslint.config.mjs`) with `typescript-eslint` v8 for type-aware linting across all monorepo workspaces.
-3. In `packages/contracts`, used `superRefine` on `Finding` to enforce requirement that `recommendation` is required when `outcome` is `"warn"` or `"fail"` per Rule 46 and Appendix A.
-4. Created `backend/tsconfig.build.json` emitting to `dist` so that `backend` builds cleanly with standard `tsc`.
-5. Configured configurable trust proxy handling in Express via `TRUST_PROXY` environment variable.
-6. Implemented anonymous owner identification using Node.js `crypto.randomUUID()` set in signed HttpOnly cookie `tid` with SameSite Lax (`Secure` in production); `DEV_OWNER_ID` overrides `req.ownerId` in development/test.
-7. Centralized `ApiError` format mapping with `AppError` and `formatZodError` ensuring error responses never return stack traces.
-8. Used Tailwind CSS v3 (`tailwindcss` ^3.4) with `tailwind.config.ts`, `postcss.config.mjs`, CSS variable design tokens, and `shadcn/ui` primitives (`Button`, `Badge`, `Card`, `Alert`, `Skeleton`) to avoid PostCSS v4 compatibility issues with Next.js 15 + Vitest.
-9. Validated `GET /api/health` in `checkApiHealth()` against the actual CP-02 response `{ status: "ok", timestamp }` rather than `ApiSuccess`, matching the backend implementation.
-10. Placed a single `ApiStatusIndicator` inside the shared `<header>` of `AppShell` (instead of duplicating it inside both sidebar and mobile drawer) so only one `role="status"` landmark and live region exist in the DOM across viewports.
-11. Set `retry: false` in `useReportQuery` and `useApiHealth` so errors transition immediately to `ErrorState` / `Unavailable` without hidden retry delays and the manual Retry button triggers an immediate `refetch()`.
-12. Branched `cp-03-frontend-foundation` from `main` (`9714e16`) per user instruction after `cp-02-done` was still untagged; installed `fnm` + Node `v22.23.4` and verified CP-02 live using the cached `mongod` 7.0.24 binary on `127.0.0.1:27017` since Docker was not installed on the machine.
-13. CP-04 started from the main tip, which includes the CI fix after cp-03-done, rather than from the tag itself.
-14. CI was red from CP-02 Task 1 to cp-03-done because @threatory/contracts was not built before typecheck on a fresh clone. Fixed in the commit 'fix: build contracts before verify so fresh clones pass CI' (verify builds contracts first, plus a root postinstall). The commits behind cp-02-done and cp-03-done were verified red on fresh clones at the time.
-15. In `backend/src/modules/url/normalise.ts`, WHATWG URL parser handles dotted decimal, octal, hex, and integer IPv4 hosts and IPv6 literals into standard normalized hostnames; `isIpHost` is flagged via `tldts.isIp` and `net.isIP`. Non-http/https, malformed, empty, and strings exceeding 2048 characters are rejected as 400 `VALIDATION_ERROR` with field path `url`.
-16. In `backend/src/modules/url/rules.ts`, all 16 detection rules always emit a finding in fixed order; score is capped at 100 with risk level derived per Appendix B1 (0-14 none_detected, 15-39 low, 40-69 medium, 70-100 high). Every warn and fail finding contains evidence, explanation, and an actionable recommendation. A feed match forces risk level to `high` and score to 100.
-17. The brief says riskLevel is the highest severity found, but B1 and golden input U1 derive the URL level from score bands (U1 has a high-severity fail yet expects medium). CP-04 and CP-06 follow B1 and U1.
-18. In CP-05, `submitUrlScan` was integrated directly into `frontend/src/lib/api-client.ts`, generalizing `performRelativeFetch` to support configurable HTTP method, payload, and headers while maintaining strict typed schema validation via `ApiSuccess(Report)` and `ApiError`.
-19. E2E backend server (`backend/tests/e2e-server.ts`) runs on dedicated test port `4001` with an isolated `MongoMemoryServer` instance and test-only secrets, completely decoupled from any live developer database. `DEV_OWNER_ID` is omitted in E2E so real signed HttpOnly `tid` owner cookies are validated across navigations and reloads.
-20. In `URLAnalyzerView`, `CardTitle` is rendered with `as="h2"` beneath `PageHeader`'s `h1` to guarantee proper heading hierarchy and 0 axe violations.
-21. Strict plain-text URL rendering was implemented across all URL display components: the target URL is rendered in non-interactive code/text blocks with no external anchors, protecting against HTML injection and URL navigation.
-22. In CP-06, Tranco dataset decompression was implemented using Node's built-in `node:zlib.inflateRawSync` directly on the deflated stream payload from the ZIP buffer, avoiding additional zip decompression npm packages.
-23. In `checkLookalike`, authoritative domains present in the top-10,000 list are short-circuited as legitimate (distance 0 is not triggered) to protect authentic top sites from false positives. Length-difference pruning ($|L_1 - L_2| > \text{maxDist}$) guarantees sub-millisecond execution over 10,000 reference domains.
-24. In `checkHomograph`, Unicode script categorization is performed using standard ES Unicode property escapes (`\p{Script=...}/u`) on the `domainToUnicode`-decoded labels to detect multi-script spoofing in addition to punycode (`xn--`) labels.
-25. In `syncService.ts`, network requests enforce a 10MB payload size limit and 15-second timeout. Any network failure or HTTP error is caught, logged via `pino`, and recorded in `FeedSyncMeta` without throwing unhandled exceptions or affecting scan operations.
-26. In CP-07, worked directly on `main` per prompt instructions with 6 task commits.
-27. In CP-07, Privacy Analyzer computes `riskLevel` as the highest severity among triggered findings with score omitted per Appendix B2 and contracts; label is `"No exposure patterns detected"` or `"${N} exposure signals found"`.
-28. In CP-07, payment card spans passing Luhn validation are mutually excluded from phone number detection in `findPhoneNumbersInText` to eliminate false-positive phone detections on credit card strings.
-29. In CP-07, mandatory explicit consent (`consent === true`) is validated up front before any processing; missing or false consent immediately returns 400 `VALIDATION_ERROR` with field `consent`.
-30. In CP-08, worked directly on `main` per prompt instructions with 6 granular task commits (`CP-08: <task>`).
-31. Form limits and field validation: 1 to 10 profile rows (`useFieldArray`), platform (1-30 chars with datalist suggestions), username (1-64 chars regex `^[A-Za-z0-9._-]+$`), optional profile URL (up to 2048 chars), optional display name (up to 80 chars), and submitted text (up to 10,000 chars with live counter).
-32. Consent enforcement: The submit button is strictly disabled until the consent checkbox is checked (`consent === true`). Submission is blocked if consent is unchecked.
-33. Strictly no password inputs: Verified via component architecture, DOM assertion tests, and Playwright that zero `input[type="password"]` controls exist on the page.
-34. Strict zero-storage invariant: Sensitive user inputs (`submittedText`, unmasked usernames, display names, raw contact/financial tokens) are never persisted to `localStorage`, `sessionStorage`, `IndexedDB`, cookies, or URL query/hash parameters. Spies in unit tests and Playwright evaluations confirm zero storage calls.
-35. Form input preservation on error: If the backend returns an error (validation error, rate limit, timeout, or server failure), entered values are preserved in-memory for immediate retry. On successful completion (`resetTrigger`), the form cleanly resets.
-36. Masked presentation: Results omit numeric score boxes per privacy contract specifications, rendering only backend-returned sanitized evidence, "What was not checked" limitations, and direct link to the saved report `/reports/[scanId]`. Reopening `/reports/[scanId]` persists across browser reloads via the anonymous owner cookie.
-37. `cp-08-done` tag was missing after CP-08. Local verify (slow DOM test timeout) and e2e (Journey 5 double-fill) failed on Windows; fixed test-only in commit `ba053e6`, then tagged `cp-08-done`.
-38. In CP-09, implemented `ssrf-guard.ts` using `ipaddr.js` to enforce public unicast routing per RFC 1918, 3927, 4193, 4291, 5737, 6598, 6052, 3056, 1112, and 6890. Target URLs resolving to private, loopback, link-local, carrier-grade NAT, 6to4, or IPv4-mapped IPv6 are rejected with 422 `TARGET_BLOCKED`.
-39. In `safeFetchWithUndici`, DNS rebinding attacks (time-of-check to time-of-use) are prevented by resolving DNS once through SSRF validation and pinning the resolved public IP via undici's `connector` using `net.connect({ host: resolvedIp, port })`.
-40. Redirects are limited to at most 3 hops and followed manually; each redirect URL undergoes full SSRF validation before establishing any outbound connection.
-41. Body reads are capped at 256 KB (`MAX_BODY_BYTES = 262144`) to protect against decompression and resource exhaustion attacks. Response bodies and cookie values are never logged, stored in MongoDB, or returned in API responses.
-42. In `service.ts`, scan checks are orchestrated using `Promise.allSettled` bounded by an 8-second per-check timeout and a 25-second overall scan budget. If a check times out or fails unexpectedly, the scan returns status `"partial"` and emits `not_assessed` findings for the uncompleted checks, rather than failing the entire scan.
-43. In `tls-checker.ts`, certificate inspection uses `tls.connect` with `rejectUnauthorized: false` to safely inspect self-signed or expired certificates without aborting, capturing exact OpenSSL error codes (`DEPTH_ZERO_SELF_SIGNED_CERT`, `CERT_HAS_EXPIRED`, etc.), validity dates, subject, issuer, and negotiated TLS protocol.
-44. In `backend/src/routes/scans.ts`, `POST /api/scans/website` enforces `{ url, authorised: true }`. Input missing `authorised: true` or with invalid URL format immediately returns 400 `VALIDATION_ERROR` (W2); SSRF targets return 422 `TARGET_BLOCKED` (W1); valid authorized public targets return 200 `ApiSuccess(Report)` (W3). Note: `POST /api/scans/website` and `POST /api/scans/privacy` return 200, whereas `POST /api/scans/url` returns 201.
-45. Contract fixtures `website-report-*.json` use `SITE_HEADER_HSTS` and `SITE_HEADER_CSP`, while the brief Appendix B3 and the CP-09 prompt name the codes `SITE_HSTS` and `SITE_CSP`. The backend follows Appendix B3. The contract schema accepts any string code, so both validate. CP-10 frontend must key on `SITE_*` codes from B3, not on the fixture names.
-46. In follow-up fix commit `ccfb07b` on `main` ("fix(CP-09): align website labels, cookie finding and HANDOFF with brief"): aligned website assessment labels to exactly "Low", "Medium", "High" (keeping "No configuration issues observed" for none_detected) per Appendix B3; updated cookie evaluation to emit a single pass finding (`SITE_COOKIE_SECURE`) when no `Set-Cookie` header is present on the checked response.
-47. In CP-10, worked directly on `main` branch per user override, creating granular task commits (`CP-10: <task>`).
-48. Configured `submitWebsiteScan` client timeout to 30,000ms (`DEFAULT_WEBSITE_REQUEST_TIMEOUT_MS`) to accommodate the backend's 25-second overall scan budget without premature client-side aborts.
-49. Generalized `FindingGroup` with an optional `categoryLabels` prop, mapping website categories to exact brief headings: `tls` -> "Connection and TLS", `headers` -> "HTTP headers", `cookies` -> "Cookies", `dns` -> "DNS and email", dynamically rendering whatever findings the backend returns.
-50. Enhanced `PartialBanner` with an `unassessedChecks` prop to explicitly list unassessed check codes and titles.
-51. Aligned `TARGET_BLOCKED` error copy across `api-client.ts` and `useWebsiteScan.ts` to exactly: `"This address cannot be audited because it is not a public website"`, stripping all internal IP, port, and network details.
-52. In CP-11, worked directly on `main` branch per user override, creating granular task commits (`CP-11: <task>`) and tagging intermediate sub-checkpoint `cp-11a-done` after Tasks 1 and 2.
-53. In `backend/src/repositories/scanRepository.ts`, implemented `list(options)` supporting `module`, `status`, `from`, `to`, `page`, and `limit` (max 50) with newest-first sorting (`createdAt: -1`).
-54. In `backend/src/routes/scans.ts`, validated query parameters using Zod `HistoryQuerySchema` (rejecting invalid parameters with 400 `VALIDATION_ERROR`).
-55. In `backend/src/routes/dashboard.ts`, mounted `dashboardRouter` with `GET /api/dashboard/summary` querying `scanRepository.getDashboardSummary(ownerId)` using MongoDB `$facet` aggregation.
-56. In `frontend/src/features/history/`, table rows display `targetSummary` purely as plain text (never clickable links, never raw privacy input). Module and status filters and pagination are stored in URL search parameters (`?module=...&status=...&page=...`) and survive page reloads.
-57. In `frontend/src/components/reports/ReportActions.tsx`, added Delete with confirmation dialog (calls `DELETE /api/scans/:scanId` and redirects to `/history`), Copy as Markdown, Copy as JSON, and print stylesheet (`@media print` rules hiding navigation and action bars while displaying limitations). Copied output is sanitized to ensure zero cookies or raw privacy input are present.
-58. In `frontend/src/features/dashboard/`, dashboard at `/` displays stat cards with dynamic numbers and explanatory text, Recharts donut chart for risk level distribution with accessible text alternatives, Recharts bar chart for module counts with accessible text alternatives, recent scans table with plain text targets, and first-use empty state when `totalScans === 0`.
-59. In `backend/tests/e2e-server.ts` and `playwright.config.ts`, added `DISABLE_RATE_LIMIT = "true"` and `permissions: ["clipboard-read", "clipboard-write"]` to support extensive sequential E2E test runs (21 journeys) without 429 rate limit or headless clipboard rejections.
-60. Two-owner browser isolation was verified in Playwright E2E (`e2e/src/history-dashboard.spec.ts`) by creating two distinct browser contexts (`browser.newContext()`) with separate cookie jars; Owner 2 sees 0 scans, cannot access Owner 1's scans, and receives 404 `NOT_FOUND` when directly navigating to Owner 1's report URL.
+1. **Direct `main` Branch Override:** Per human developer prompt instructions, CP-12 work was conducted directly on `main` without creating a separate `cp-12-harden-ship` branch, pull request, or merge commit.
+2. **Human Release Tagging:** Release tags `cp-12-done` and `v1.0.0` are reserved for the human developer upon final gate review, avoiding automated tagging conflicts.
+3. **PostCSS Override:** Added npm override `"overrides": { "postcss": "^8.5.33" }` in root `package.json` to resolve high-severity vulnerabilities (GHSA-qx2v-qp2m-jg93, GHSA-6g55-p6wh-862q) across Next.js and Tailwind without breaking upgrades.
+4. **Zod Vulnerability Evaluation:** Retained `zod@3.25.76` and formally proved non-exploitability of GHSA-mrhx-c7xc-m3w5 (resource consumption via unbounded collections) because Threatory enforces a 20 KB body-parser limit and all array schemas have explicit length constraints. Upgrading to Zod 4 was evaluated and rejected due to breaking API changes in error structures and `@hookform/resolvers`.
+5. **Gitleaks Ignore for Test Fixtures:** Added `.gitleaksignore` cataloging synthetic unit test tokens (RFC 7519 JWT example and mock Slack bot token) used in test suites, confirming zero real leaked credentials across all 96+ commits.
+6. **Graceful Shutdown Lifecycle:** Enhanced `backend/src/server.ts` with atomic shutdown guards (`isShuttingDown`), a 10-second unreferenced force-exit timeout, feed scheduler termination, HTTP server drain, and clean Mongoose disconnection.
+7. **SVG Favicon Route:** Added scalable SVG brand icon at `frontend/src/app/icon.svg` providing native Next.js App Router favicon generation without external image dependencies.
+8. **Help Page Architecture:** Expanded `frontend/src/app/help/page.tsx` into a comprehensive 8-section guide explaining methodology, analyzer scopes, storage rules, retention, and responsible use.
+9. **Endpoint Status Code Consistency:** Retained `POST /api/scans/url` returning HTTP 201 (Created) and `POST /api/scans/website` / `POST /api/scans/privacy` returning HTTP 200 (OK) to maintain complete backward compatibility with established contracts and tests.
 
-## Contract changes
-None. Contracts implemented strictly per Appendix A and Appendix C; no changes to `packages/contracts` were required.
+---
 
-## Dependencies added
-### Root / Workspace dependencies (CP-01 & CP-05)
-- `zod` (^3.23.8, MIT): Runtime schema declaration and validation library.
-- `typescript` (^5.6.3, Apache-2.0): Static typing for all workspaces.
-- `vitest` (^2.1.4, MIT): Fast unit and contract test runner.
-- `eslint` (^9.14.0, MIT) & `typescript-eslint` (^8.14.0, MIT): Linter for strict TypeScript.
-- `prettier` (^3.3.3, MIT): Opinionated code formatting.
-- `@types/node` (^22.9.0, MIT): Node.js type definitions.
-- `tsx` (^4.23.15, MIT): Added in CP-05 to execute the test-only backend E2E server (`backend/tests/e2e-server.ts`) with zero-config TypeScript compilation.
+## Contract Changes
+None. `@threatory/contracts` implemented strictly per specification; zero breaking schema changes were required.
 
-### Backend dependencies (CP-02, CP-04, CP-06, CP-07, CP-09)
-- `express` (^4.21.1, MIT), `helmet` (^8.0.0, MIT), `cors` (^2.8.5, MIT), `express-rate-limit` (^7.4.1, MIT), `pino` (^9.5.0, MIT), `pino-http` (^10.3.0, MIT), `cookie-parser` (^1.4.7, MIT), `mongoose` (^8.8.1, MIT), `dotenv` (^16.4.5, BSD-2-Clause), `zod` (^3.23.8, MIT), `supertest` (^7.0.0, MIT), `mongodb-memory-server` (^10.1.2, MIT), and `@types/*` (`MIT`).
-- `tldts` (^6.1.86, MIT): Added in CP-04 to accurately extract registrable domains, ICANN public suffixes, and identify IP hosts for the URL analyzer engine without external network dependencies.
-- `fastest-levenshtein` (^1.0.16, MIT): Added in CP-06 for high-performance Levenshtein distance calculations in `URL_LOOKALIKE` typosquatting detection and reused in CP-07 for `PRIV_USERNAME_SIMILAR`.
-- `node-cron` (^3.0.3, ISC) & `@types/node-cron` (^3.0.11, MIT): Added in CP-06 for scheduled daily threat feed synchronization.
-- `validator` (^13.15.35, MIT) & `@types/validator` (^13.15.10, MIT): Added in CP-07 for RFC-compliant email address validation in `PRIV_EMAIL_FOUND`.
-- `libphonenumber-js` (^1.13.16, MIT): Added in CP-07 for international phone number extraction and validation in `PRIV_PHONE_FOUND`.
-- `ipaddr.js` (^2.2.0, MIT): Added in CP-09 for RFC-compliant IPv4 and IPv6 address parsing, range classification, and SSRF prevention.
-- `undici` (^6.21.1, MIT): Added in CP-09 for low-level HTTP/HTTPS client fetching with custom pinned connectors, read caps, and safe manual redirect interception.
-- `p-limit` (^6.2.0, MIT): Added in CP-09 for concurrency throttling (concurrency 3) during website inspection.
-- `set-cookie-parser` (^2.7.1, MIT) & `@types/set-cookie-parser` (^2.4.10, MIT): Added in CP-09 for parsing `Set-Cookie` header attributes (Secure, HttpOnly, SameSite) without retaining cookie values.
-- `selfsigned` (^3.0.0, MIT): Added in CP-09 for generating ephemeral X.509 certificates in TLS test suites.
+---
 
-### Frontend dependencies (CP-03, CP-05, CP-11)
-- `next` (`15.5.29`, MIT): Next.js App Router framework and `/api` rewrite proxy.
-- `react` & `react-dom` (`19.3.1`, MIT) + `@types/react` & `@types/react-dom` (`19.3.0`, MIT): UI runtime and strict TypeScript definitions.
-- `@tanstack/react-query` (`5.107.1`, MIT): Async report fetching, caching, cancellation, retry, and health polling.
-- `lucide-react` (`0.468.0`, ISC): Accessible UI icons.
-- `zod` (`3.25.76`, MIT): Client-side contract parsing with `@threatory/contracts`.
-- `tailwindcss` (`3.4.19`, MIT), `postcss` (`8.5.32`, MIT), `autoprefixer` (`10.6.2`, MIT): Utility-first light theme styling.
-- `@radix-ui/react-slot` (`1.5.0`, MIT), `class-variance-authority` (`0.7.1`, Apache-2.0), `clsx` (`2.1.1`, MIT), `tailwind-merge` (`2.6.1`, MIT): `shadcn/ui` component composition utilities.
-- `@vitejs/plugin-react` (`4.7.0`, MIT), `jsdom` (`25.0.1`, MIT), `@testing-library/react` (`16.3.3`, MIT), `@testing-library/jest-dom` (`6.9.1`, MIT), `@testing-library/user-event` (`14.6.9`, MIT), `vitest-axe` (`0.1.0`, MIT): Automated DOM, interaction, and accessibility test tooling.
-- `react-hook-form` (^7.54.2, MIT): Added in CP-05 for URL scan form state management, validation error mapping, and submission handling.
-- `@hookform/resolvers` (^3.10.0, MIT): Added in CP-05 as the Zod validation resolver for React Hook Form.
-- `recharts` (^2.15.1, MIT): Added in CP-11 for accessible client-side data visualizations (donut chart for risk distribution, bar chart for module counts).
+## Dependencies Added / Modified
+- Modified in root `package.json`: Added `"overrides": { "postcss": "^8.5.33" }` to eliminate PostCSS vulnerabilities.
+- No new external runtime production dependencies added.
 
-### E2E dependencies (CP-05)
-- `@playwright/test` (^1.49.1, Apache-2.0): Cross-browser end-to-end test framework orchestrating isolated test environments and full user journeys.
+---
 
-## Known issues
-1. `npm audit` reports vulnerabilities and `eslint@9.39.5` is flagged deprecated; not addressed in earlier checkpoints. Do not run `npm audit fix --force`.
-2. `next build` warns that `@next/eslint-plugin-next` is not configured in root `eslint.config.mjs` (deferred to avoid modifying root config outside scope).
-3. On Windows terminal environments, running backend tests in Standard Sandbox mode (without bypass) encounters `EACCES` on loopback `127.0.0.1` sockets (used by Supertest/Express and MongoMemoryServer); running tests with elevated network permissions allows full socket binding.
+## Known Issues
 
-## Parking lot
-- Endpoint status code consistency: `POST /api/scans/website` and `/privacy` return 200, whereas `/url` returns 201 (revisit in CP-12).
-- Dark mode toggle or theme customizer.
+1. **`npm audit` Advisory (Zod <4.6.6 / GHSA-mrhx-c7xc-m3w5):**
+   - **Severity:** High
+   - **Impact:** Uncontrolled resource consumption if an attacker submits an unbounded array to an unconstrained Zod array schema.
+   - **Mitigation:** Provably non-exploitable in Threatory: Threatory's Express middleware enforces a 20 KB JSON payload cap, and all request schemas enforce strict array boundaries (`profiles.max(10)`). Upgrading to Zod 4 is a breaking change.
+   - **Release Blocking:** No. Documented as a demonstrable non-exploitable finding.
+2. **Next.js ESLint Build Notice:**
+   - **Severity:** Low (informational warning during `next build`).
+   - **Impact:** Next.js build emits `The Next.js plugin was not detected in your ESLint configuration`.
+   - **Mitigation:** The monorepo uses ESLint 9 flat config across all workspaces. Compilation and typechecks pass with 100% success (10/10 routes built).
+   - **Release Blocking:** No.
+3. **Windows Sandbox Loopback Sockets:**
+   - **Severity:** Low (environmental notice).
+   - **Impact:** In highly restricted Windows sandbox terminals without network bypass, local `127.0.0.1` sockets may encounter `EACCES`.
+   - **Mitigation:** Running in standard terminal environments with network permissions allows full socket binding.
+   - **Release Blocking:** No.
+
+---
+
+## Parking Lot
+- Unify scan creation endpoint status codes (`201 Created` across all three analyzers) in a future v2.0 breaking release.
+- Dark mode theme toggle.
+- Multi-language localization (i18n).
