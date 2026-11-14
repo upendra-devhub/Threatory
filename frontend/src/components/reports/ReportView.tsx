@@ -16,6 +16,13 @@ const MODULE_LABELS: Record<Module, string> = {
   website: "Website Auditor",
 };
 
+const WEBSITE_CATEGORY_LABELS: Record<string, string> = {
+  tls: "Connection and TLS",
+  headers: "HTTP headers",
+  cookies: "Cookies",
+  dns: "DNS and email",
+};
+
 const STATUS_BADGE_CONFIG: Record<
   Report["status"],
   { label: string; className: string }
@@ -54,6 +61,14 @@ export interface ReportViewProps {
 export function ReportView({ report, className }: ReportViewProps) {
   const statusConfig = STATUS_BADGE_CONFIG[report.status];
   const renderableDetails = getRenderableDetails(report.details);
+  const unassessedChecks =
+    report.status === "partial"
+      ? report.findings
+          .filter((f) => f.outcome === "not_assessed")
+          .map((f) => (f.title ? `${f.title} (${f.code})` : f.code))
+      : undefined;
+  const categoryLabels =
+    report.module === "website" ? WEBSITE_CATEGORY_LABELS : undefined;
 
   return (
     <div className={cn("space-y-6", className)}>
@@ -110,7 +125,7 @@ export function ReportView({ report, className }: ReportViewProps) {
       </section>
 
       {/* 3. Report status banner for partial or failed */}
-      {report.status === "partial" ? <PartialBanner /> : null}
+      {report.status === "partial" ? <PartialBanner unassessedChecks={unassessedChecks} /> : null}
       {report.status === "failed" ? (
         <Alert variant="destructive">
           <div className="flex items-start gap-3">
@@ -136,7 +151,7 @@ export function ReportView({ report, className }: ReportViewProps) {
             {report.findings.length} {report.findings.length === 1 ? "item" : "items"}
           </span>
         </div>
-        <FindingGroup findings={report.findings} />
+        <FindingGroup findings={report.findings} categoryLabels={categoryLabels} />
       </section>
 
       {/* 5. Limitations */}

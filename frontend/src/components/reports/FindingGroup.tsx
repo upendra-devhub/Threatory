@@ -28,9 +28,10 @@ export function formatCategoryHeading(category: string): string {
 
 export interface FindingGroupProps {
   findings: Finding[];
+  categoryLabels?: Record<string, string>;
 }
 
-export function FindingGroup({ findings }: FindingGroupProps) {
+export function FindingGroup({ findings, categoryLabels }: FindingGroupProps) {
   const baseId = useId();
 
   if (findings.length === 0) {
@@ -61,7 +62,7 @@ export function FindingGroup({ findings }: FindingGroupProps) {
           <section key={category} aria-labelledby={headingId} className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
               <h3 id={headingId} className="text-base font-semibold text-foreground">
-                {formatCategoryHeading(category)}
+                {categoryLabels?.[category] ?? formatCategoryHeading(category)}
               </h3>
               <Badge variant="secondary">
                 {groupFindings.length} {groupFindings.length === 1 ? "finding" : "findings"}
