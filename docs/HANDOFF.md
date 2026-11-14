@@ -1,8 +1,8 @@
 # HANDOFF
 
 ## Baton
-Current owner: upendra-devhub            Updated: 2026-11-13
-Status: READY
+Current owner: Sana            Updated: 2026-11-14
+Status: IN PROGRESS (CP-10)
 Last completed: CP-09 (tag `cp-09-done`)
 Follow-up: cp-09-done plus follow-up fix commit `ccfb07b`: start CP-10 from main HEAD
 Current checkpoint: CP-09 completed, next is CP-10
