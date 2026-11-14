@@ -1,0 +1,28 @@
+# ==============================================================================
+# Threatory Infrastructure-as-Code Blueprint (Render)
+# Deploys the Threatory Express Backend as a Docker Web Service
+# ==============================================================================
+services:
+  - type: web
+    name: threatory-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: FEEDS_SYNC_ENABLED
+        value: "false"
+      - key: TRUST_PROXY
+        value: "1"
