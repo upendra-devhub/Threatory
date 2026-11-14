@@ -14,7 +14,6 @@ import { generateReportMarkdown } from "./format-markdown";
 function useSafeRouterPush(): (url: string) => void {
   try {
     if (typeof navigation.useRouter === "function") {
-      // eslint-disable-next-line react-hooks/rules-of-hooks
       const r = navigation.useRouter();
       if (r && typeof r.push === "function") {
         return (url: string) => r.push(url);
@@ -33,7 +32,6 @@ function useSafeRouterPush(): (url: string) => void {
 
 function useSafeQueryClient() {
   try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useQueryClient();
   } catch {
     return undefined;
