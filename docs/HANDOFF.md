@@ -1,23 +1,19 @@
 # HANDOFF
 
 ## Baton
-Current owner: Sana            Updated: 2026-11-14
-Status: IN PROGRESS (CP-10)
-Last completed: CP-09 (tag `cp-09-done`)
-Follow-up: cp-09-done plus follow-up fix commit `ccfb07b`: start CP-10 from main HEAD
-Current checkpoint: CP-09 completed, next is CP-10
+Current owner: upendra-devhub            Updated: 2026-11-14
+Status: READY
+Last completed: CP-10 (tag `cp-10-done`)
+Current checkpoint: CP-10 completed, next is CP-11
 Current branch: `main`
 
 ## Exact next step
-The next checkpoint is **CP-10 — Website Auditor Screen**.
-- Person B takes the baton to implement the Website Security Auditor screen (`frontend/src/features/website/` and `frontend/src/app/website-auditor/page.tsx`).
-- Connect React Hook Form + Zod resolver to validate `url` and mandatory `authorised: true` checkbox before submission.
-- Submit to `POST /api/scans/website` using TanStack Query mutation hook (`useWebsiteScan`).
-- Render the 4 assessment finding groups: DNS (`dns`), TLS (`tls`), Headers (`headers`), and Cookies (`cookies`).
-- Render certificate details card (subject, issuer, valid from/to, protocol, SANs) and overall score & risk badge.
-- Handle "partial" scan reports cleanly when individual checks time out (noting unassessed checks).
-- Maintain strict plain-text URL rendering, zero response body/cookie value rendering, and full accessibility (`vitest-axe` with 0 violations).
-- Add Playwright E2E journeys validating golden inputs (e.g. W3, validation error W2, SSRF blocked W1).
+The next checkpoint is **CP-11 — History & Dashboard screen**.
+- Person A takes the baton to implement the History list screen (`/history`) and Dashboard summary screen (`/`).
+- Connect to `GET /api/scans` for owner-scoped history with pagination (page, limit) and module filter.
+- Support report deletion via `DELETE /api/scans/:scanId` with confirmation dialog and optimistic/invalidated query refresh.
+- Connect to `GET /api/dashboard/summary` to render scan totals, module breakdown, and risk distribution using Recharts.
+- Maintain full accessibility (`vitest-axe` with 0 violations) and end-to-end user journeys for history and dashboard.
 
 ## Privacy Module Reference (CP-07 & CP-08)
 - **Rules Version:** `privacy-1.0.0`
@@ -131,6 +127,55 @@ The next checkpoint is **CP-10 — Website Auditor Screen**.
 - **Retention:** Website scan reports expire after 30 days (`expiresAt = createdAt + 30 days`).
 - **Owner Identification:** Associated with signed HttpOnly cookie `tid` or `DEV_OWNER_ID`.
 
+## Website Auditor Screen Reference (CP-10)
+- **Screen Location (Frontend):** `frontend/src/features/website/` and `frontend/src/app/website-auditor/page.tsx`
+  - `components/WebsiteAuditorView.tsx`: Main view coordinating page header, scope notice, form, progress state, error feedback, and result presentation.
+  - `components/WebsiteScanForm.tsx`: React Hook Form + Zod resolver validating `url` and mandatory `authorised: true` checkbox before submission.
+  - `components/AuthorisationCheckbox.tsx`: Accessible mandatory confirmation checkbox with exact text "I own this site or have permission to assess it".
+  - `components/WebsiteScopeNotice.tsx`: Landmark region explaining passive security assessment vs excluded exploits/payloads.
+  - `components/WebsiteScanProgress.tsx`: Status indicator announcing that the passive audit can take up to 25 seconds.
+  - `components/CertificateCard.tsx`: Structured plain-text display of TLS certificate details (subject, issuer, valid from/to, protocol, days remaining, authorized status).
+  - `components/WebsiteResult.tsx`: Result container with grouped findings, certificate summary, and limitations.
+  - `hooks/useWebsiteScan.ts`: TanStack Query mutation hook managing submission to `POST /api/scans/website`, 30s timeout, sanitized error mapping, and memory-only retry state.
+
+### How Partial and Blocked States are Tested
+- **Blocked State (TARGET_BLOCKED):**
+  - Tested in unit suite (`frontend/tests/website-auditor.test.tsx`) with mocked 422 `TARGET_BLOCKED` response.
+  - Tested in E2E suite (`e2e/src/website-auditor.spec.ts`) against the real backend using Golden Input W1 (`http://127.0.0.1` with authorisation checked).
+  - Verifies that error copy displays EXACTLY: `"This address cannot be audited because it is not a public website"`, with zero internal IP, port, interface, or server details exposed.
+- **Partial State (not_assessed findings):**
+  - Tested in unit suite using `website-report-partial.json` contract fixture.
+  - Tested in E2E suite using Playwright route interception (`page.route`) delivering `website-report-partial.json`.
+  - Verifies that `PartialBanner` explicitly names the unassessed check (`SITE_DMARC`), `not_assessed` has a distinct visual badge (`CircleDashed`, label "Not assessed", dashed border), and is never counted or shown as pass.
+- **Authorisation Enforcement:**
+  - Tested in both unit and E2E suites: submitting without checking "I own this site or have permission to assess it" blocks submission with client-side error "You must confirm authorisation to audit this website" and prevents outbound network requests.
+- **Strict Plain-Text Invariant:**
+  - Tested in both unit and E2E suites: submitted URLs and certificate subjects are rendered as plain text and never wrapped in `<a href="...">` or `<Link>`.
+
+### Manual Online Test Steps (Golden Input W3)
+To run the online check against a live public website (`https://example.com`):
+1. **Prerequisites:** Ensure internet connectivity is available.
+2. **Start Backend Server:**
+   `npx tsx backend/tests/e2e-server.ts`
+   (or `npm start -w backend` with MongoDB running on `127.0.0.1:27017`)
+3. **Start Frontend Dev Server:**
+   `npm run dev -w frontend` (runs on `http://localhost:3000`)
+4. **Open Browser:**
+   Navigate to `http://localhost:3000/website-auditor`.
+5. **Fill Form:**
+   - URL: `https://example.com`
+   - Checkbox: Tick "I own this site or have permission to assess it".
+6. **Submit:**
+   Click "Audit website". Observe progress message: "Auditing website security configuration... A scan can take up to 25 seconds to complete."
+7. **Verify Results:**
+   - Status: Completed (or partial if upstream DNS restricts queries).
+   - Groups: All four groups render: "Connection and TLS", "HTTP headers", "Cookies", and "DNS and email".
+   - Certificate: Certificate summary card displays subject (`example.com`), issuer, valid dates, protocol (`TLSv1.3`), days remaining, and Authorized badge.
+   - Assessment: Shows assessment summary label ("Medium" or "Low") with NO numeric score.
+   - Target URL: Displayed as plain text without any clickable external link.
+   - Saved Report: "Open saved report" button navigates to `/reports/[scanId]`.
+*(Automated verification of W3 against live servers was executed and confirmed green: `1 passed (39.5s)`).*
+
 ## How to run (keep accurate)
 Node version: 22 (per `.nvmrc`; verified locally on Node `v22.23.4`)
 Workspaces: `packages/contracts` (`@threatory/contracts`), `backend`, `frontend`, `e2e`
@@ -164,6 +209,7 @@ Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
 | CP-07 | Person A | 2026-11-13 | `cp-07-done` | Privacy Exposure Analyzer engine & endpoint (`POST /api/scans/privacy`), local profile URL parsing, 9 detection rules (`privacy-1.0.0`), sensitive value masking, zero raw storage (`submittedText` never persisted), 7-day TTL retention, golden inputs P1-P4, comprehensive privacy leakage test |
 | CP-08 | Person A | 2026-11-13 | `cp-08-done` | Privacy Analyzer screen (`/privacy-analyzer`), dynamic profile rows (1-10 with removal safeguards), visible scope notice landmark (no password field exists), mandatory consent enforcement, zero browser storage leaks (`localStorage`, `sessionStorage`, `IndexedDB`, URL query/hash), safe masked report presentation, error/retry input preservation, and Playwright end-to-end journeys (P1, P2, reload persistence, mobile viewport) |
 | CP-09 | Sana | 2026-11-13 | `cp-09-done` | Website Auditor engine, SSRF guard (RFC compliance, undici pinned connector, 3-hop redirect guard), 20 detection rules (DNS, TLS, Headers, Cookies), Promise.allSettled orchestration with 8s/25s timeouts, partial reports on timeout, POST /api/scans/website endpoint, 30-day TTL, zero response body/cookie value storage, verified on golden inputs W1 (422), W2 (400), W3 (live completed) |
+| CP-10 | Sana | 2026-11-14 | `cp-10-done` | Website Auditor screen (`/website-auditor`), mandatory authorisation checkbox ("I own this site or have permission to assess it"), plain-text scope disclosures, 25s progress feedback, results grouped into 4 categories (Connection and TLS, HTTP headers, Cookies, DNS and email), certificate summary card, partial banner naming unassessed checks, friendly TARGET_BLOCKED copy, zero score fabrication, strict plain-text URL rendering, 0 axe violations, Vitest unit/accessibility suite (16 tests), and Playwright E2E journeys (W1 blocked, mocked partial, authorisation enforcement, responsive layout) |
 
 ## Decisions
 1. `main` was created after CP-01 at `cp-01-done` (`c9a832c`) because the pre-CP-01 setup step existed only in the PDF. History unchanged.
@@ -212,6 +258,11 @@ Start frontend (prod): `npm run build -w frontend && npm start -w frontend`
 44. In `backend/src/routes/scans.ts`, `POST /api/scans/website` enforces `{ url, authorised: true }`. Input missing `authorised: true` or with invalid URL format immediately returns 400 `VALIDATION_ERROR` (W2); SSRF targets return 422 `TARGET_BLOCKED` (W1); valid authorized public targets return 200 `ApiSuccess(Report)` (W3). Note: `POST /api/scans/website` and `POST /api/scans/privacy` return 200, whereas `POST /api/scans/url` returns 201.
 45. Contract fixtures `website-report-*.json` use `SITE_HEADER_HSTS` and `SITE_HEADER_CSP`, while the brief Appendix B3 and the CP-09 prompt name the codes `SITE_HSTS` and `SITE_CSP`. The backend follows Appendix B3. The contract schema accepts any string code, so both validate. CP-10 frontend must key on `SITE_*` codes from B3, not on the fixture names.
 46. In follow-up fix commit `ccfb07b` on `main` ("fix(CP-09): align website labels, cookie finding and HANDOFF with brief"): aligned website assessment labels to exactly "Low", "Medium", "High" (keeping "No configuration issues observed" for none_detected) per Appendix B3; updated cookie evaluation to emit a single pass finding (`SITE_COOKIE_SECURE`) when no `Set-Cookie` header is present on the checked response.
+47. In CP-10, worked directly on `main` branch per user override, creating granular task commits (`CP-10: <task>`).
+48. Configured `submitWebsiteScan` client timeout to 30,000ms (`DEFAULT_WEBSITE_REQUEST_TIMEOUT_MS`) to accommodate the backend's 25-second overall scan budget without premature client-side aborts.
+49. Generalized `FindingGroup` with an optional `categoryLabels` prop, mapping website categories to exact brief headings: `tls` -> "Connection and TLS", `headers` -> "HTTP headers", `cookies` -> "Cookies", `dns` -> "DNS and email", dynamically rendering whatever findings the backend returns.
+50. Enhanced `PartialBanner` with an `unassessedChecks` prop to explicitly list unassessed check codes and titles.
+51. Aligned `TARGET_BLOCKED` error copy across `api-client.ts` and `useWebsiteScan.ts` to exactly: `"This address cannot be audited because it is not a public website"`, stripping all internal IP, port, and network details.
 
 ## Contract changes
 None. Schemas implemented strictly per Appendix A and Appendix C; no changes to `packages/contracts` were required.
@@ -261,6 +312,5 @@ None. Schemas implemented strictly per Appendix A and Appendix C; no changes to 
 
 ## Parking lot
 - Endpoint status code consistency: `POST /api/scans/website` and `/privacy` return 200, whereas `/url` returns 201 (revisit in CP-12).
-- Website Security Auditor frontend (`CP-10`).
 - History pagination/filtering, report deletion UI, and dashboard summary with Recharts (`CP-11`).
 - Dark mode toggle or theme customizer.
