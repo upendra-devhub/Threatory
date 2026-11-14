@@ -1,5 +1,15 @@
-import { Report } from "@threatory/contracts";
+import { HistoryPage, Module, Report } from "@threatory/contracts";
 import { Scan, IScan } from "../models/scan.js";
+
+export interface ListScansOptions {
+  ownerId: string;
+  module?: Module;
+  status?: "completed" | "partial" | "failed";
+  from?: string | Date;
+  to?: string | Date;
+  page?: number;
+  limit?: number;
+}
 
 export interface CreateScanInput {
   scanId: string;
@@ -86,5 +96,71 @@ export const scanRepository = {
   async delete(scanId: string, ownerId: string): Promise<boolean> {
     const result = await Scan.deleteOne({ scanId, ownerId }).exec();
     return (result.deletedCount ?? 0) > 0;
+  },
+
+  async list(options: ListScansOptions): Promise<HistoryPage> {
+    const filter: Record<string, unknown> = { ownerId: options.ownerId };
+
+    if (options.module) {
+      filter.module = options.module;
+    }
+
+    if (options.status) {
+      filter.status = options.status;
+    }
+
+    if (options.from || options.to) {
+      const dateFilter: Record<string, Date> = {};
+      if (options.from) {
+        dateFilter.$gte =
+          options.from instanceof Date ? options.from : new Date(options.from);
+      }
+      if (options.to) {
+        dateFilter.$lte =
+          options.to instanceof Date
+            ? options.to
+            : typeof options.to === "string" && /^\d{4}-\d{2}-\d{2}$/.test(options.to)
+              ? new Date(`${options.to}T23:59:59.999Z`)
+              : new Date(options.to);
+      }
+      filter.createdAt = dateFilter;
+    }
+
+    const page = options.page && options.page > 0 ? options.page : 1;
+    const limit =
+      options.limit && options.limit > 0 ? Math.min(options.limit, 50) : 20;
+    const skip = (page - 1) * limit;
+
+    const [docs, total] = await Promise.all([
+      Scan.find(filter)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      Scan.countDocuments(filter).exec(),
+    ]);
+
+    const items = docs.map((doc) => ({
+      scanId: doc.scanId,
+      module: doc.module,
+      status: doc.status,
+      targetSummary: doc.targetSummary,
+      assessment: {
+        label: doc.assessment.label,
+        riskLevel: doc.assessment.riskLevel,
+      },
+      createdAt:
+        doc.createdAt instanceof Date
+          ? doc.createdAt.toISOString()
+          : new Date(doc.createdAt).toISOString(),
+    }));
+
+    return HistoryPage.parse({
+      items,
+      page,
+      limit,
+      total,
+    });
   },
 };
