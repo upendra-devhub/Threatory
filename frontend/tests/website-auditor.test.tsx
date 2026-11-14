@@ -155,6 +155,8 @@ describe("Website Auditor Component Tests & Accessibility (CP-10 Task 5)", () =>
         ).toBeInTheDocument();
       });
 
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
       // INVARIANT: Verify no internal IP, interface, or server message leaked
       expect(screen.queryByText(/127\.0\.0\.1/)).not.toBeInTheDocument();
       expect(screen.queryByText(/eth0/)).not.toBeInTheDocument();
