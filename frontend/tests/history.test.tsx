@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { HistoryPage } from "@threatory/contracts";
 import { HistoryView } from "../src/features/history/components/HistoryView";
@@ -206,10 +206,9 @@ describe("History View and Components (CP-11 Task 3)", () => {
     const { container } = renderWithQuery(<HistoryView />);
 
     expect(await screen.findByText("No matching scans")).toBeInTheDocument();
-    const clearButton = screen.getAllByRole("button", { name: /clear filters|reset filters/i })[0];
-    expect(clearButton).toBeInTheDocument();
-
-    await user.click(clearButton);
+    const clearButtons = screen.getAllByRole("button", { name: /clear filters|reset filters/i });
+    expect(clearButtons[0]).toBeDefined();
+    await user.click(clearButtons[0]!);
     expect(mockPush).toHaveBeenCalledWith("/history");
 
     await expectNoAxeViolations(container);

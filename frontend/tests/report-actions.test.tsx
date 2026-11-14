@@ -138,7 +138,7 @@ describe("Report Actions & Dialog (CP-11 Task 4 & Task 6)", () => {
     const user = userEvent.setup();
     const fixture = loadReportFixture("website-report-completed.json");
 
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((url, options) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((url, options) => {
       const urlStr = String(url);
       if (options?.method === "DELETE" && urlStr.includes("/api/scans/scan-site-001")) {
         return Promise.resolve(
@@ -179,8 +179,9 @@ describe("Report Actions & Dialog (CP-11 Task 4 & Task 6)", () => {
     await user.click(deleteTrigger);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
-    const confirmDeleteButton = screen.getAllByRole("button", { name: /delete report/i })[1];
-    await user.click(confirmDeleteButton);
+    const confirmDeleteButtons = screen.getAllByRole("button", { name: /delete report/i });
+    expect(confirmDeleteButtons[1]).toBeDefined();
+    await user.click(confirmDeleteButtons[1]!);
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/history");

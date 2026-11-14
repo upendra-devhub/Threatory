@@ -1,6 +1,7 @@
 import {
   ApiError,
   ApiSuccess,
+  DashboardSummary,
   HistoryPage,
   Module,
   PrivacyScanRequest,
@@ -102,6 +103,7 @@ export const queryKeys = {
   privacyScan: () => ["privacy-scan"] as const,
   websiteScan: () => ["website-scan"] as const,
   history: (params: HistoryQueryParams = {}) => ["history", params] as const,
+  dashboardSummary: () => ["dashboard-summary"] as const,
 };
 
 function createAbortError(): Error {
@@ -199,6 +201,7 @@ async function parseJsonBody(response: Response): Promise<unknown> {
 
 export const ReportSuccessSchema = ApiSuccess(Report);
 export const HistorySuccessSchema = ApiSuccess(HistoryPage);
+export const DashboardSummarySuccessSchema = ApiSuccess(DashboardSummary);
 
 export const DeleteScanSuccessSchema = ApiSuccess(
   z.object({
@@ -289,6 +292,26 @@ async function requestApi<T>(
   }
 
   return parseErrorAndThrow(response, payload);
+}
+
+export async function getDashboardSummary(
+  options: ApiRequestOptions = {}
+): Promise<DashboardSummary> {
+  return requestApi<DashboardSummary>(
+    "/api/dashboard/summary",
+    (payload) => {
+      const parsed = DashboardSummarySuccessSchema.safeParse(payload);
+      if (!parsed.success || !parsed.data.data) {
+        return { success: false };
+      }
+      const summary = DashboardSummary.safeParse(parsed.data.data);
+      if (!summary.success) {
+        return { success: false };
+      }
+      return { success: true, data: summary.data };
+    },
+    options
+  );
 }
 
 export async function getReport(
