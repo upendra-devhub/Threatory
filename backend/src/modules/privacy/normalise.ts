@@ -34,7 +34,7 @@ export function normaliseUsername(username: string): string {
  */
 export function normalisePlatform(platform: string): string {
   const p = platform.trim().toLowerCase();
-  if (p === "x" || p === "twitter") return "x_twitter";
+  if (p === "x" || p === "twitter" || p === "x / twitter" || p === "x/twitter") return "x_twitter";
   return p;
 }
 

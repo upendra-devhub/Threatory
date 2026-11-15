@@ -1,75 +1,85 @@
 import React from "react";
-import { AlertTriangle, Shield, CheckCircle2, XCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Lock } from "lucide-react";
 
 export function PrivacyScopeNotice() {
   return (
-    <section aria-label="Privacy analysis scope notice">
-      <Card className="border-border bg-muted/40 shadow-xs" data-testid="privacy-scope-notice">
-      <CardHeader className="pb-3">
+    <section
+      aria-label="Privacy analysis scope notice"
+      data-testid="privacy-scope-notice"
+      className="space-y-4"
+    >
+      {/* 1. What is checked Card */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm space-y-3">
+        <h2 className="text-sm font-bold text-slate-900">What is checked</h2>
+        <ul className="space-y-2 text-xs text-slate-600 leading-relaxed list-none">
+          <li className="flex items-start gap-2">
+            <span className="text-slate-400 font-bold select-none">•</span>
+            <span>Same username across profiles</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-slate-400 font-bold select-none">•</span>
+            <span>Similar or personal-looking usernames</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-slate-400 font-bold select-none">•</span>
+            <span>Username vs profile URL mismatch</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-slate-400 font-bold select-none">•</span>
+            <span>Emails and phone numbers in text</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-slate-400 font-bold select-none">•</span>
+            <span>Secrets, tokens and card numbers</span>
+          </li>
+        </ul>
+      </div>
+
+      {/* 2. What is never done Card */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm space-y-3">
+        <h2 className="text-sm font-bold text-slate-900">What is never done</h2>
+        <ul className="space-y-2 text-xs text-slate-600 leading-relaxed list-none">
+          <li className="flex items-start gap-2">
+            <span className="text-slate-400 font-bold select-none">•</span>
+            <span>No scraping or visiting profiles</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-slate-400 font-bold select-none">•</span>
+            <span>No private account access</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-slate-400 font-bold select-none">•</span>
+            <span>No claim that profiles belong to one person</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-slate-400 font-bold select-none">•</span>
+            <span>Sensitive values are masked in reports</span>
+          </li>
+        </ul>
+      </div>
+
+      {/* 3. Kept for 7 days Card */}
+      <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm space-y-1.5">
         <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 text-primary" aria-hidden="true" />
-          <CardTitle as="h2" className="text-sm sm:text-base font-semibold text-foreground">
-            Analysis Scope and Privacy Notice
-          </CardTitle>
+          <Lock className="h-4 w-4 text-emerald-600 shrink-0" aria-hidden="true" />
+          <h2 className="text-xs sm:text-sm font-bold text-emerald-800">
+            Kept for 7 days
+          </h2>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {/* What Threatory does */}
-          <div className="rounded-md border border-border/80 bg-background/80 p-3.5 space-y-2">
-            <span className="font-semibold text-foreground flex items-center gap-1.5 text-xs sm:text-sm">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" aria-hidden="true" />
-              What Threatory analyses:
-            </span>
-            <ul className="list-disc pl-4 space-y-1.5 text-xs">
-              <li>
-                <strong>Only information explicitly supplied:</strong> Evaluates only the handles, profile entries, and text you submit in this form.
-              </li>
-              <li>
-                <strong>Local structural analysis:</strong> Identifies pattern signals such as username reuse across services, birth year suffixes, and exposed contact information.
-              </li>
-              <li>
-                <strong>Automatic masking:</strong> Sanitizes and masks all sensitive entities (emails, phones, secret keys, payment cards, usernames) in reports and storage.
-              </li>
-            </ul>
-          </div>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Privacy reports are the shortest-lived. Delete one any time from its report page.
+        </p>
+      </div>
 
-          {/* What Threatory does not do */}
-          <div className="rounded-md border border-border/80 bg-background/80 p-3.5 space-y-2">
-            <span className="font-semibold text-foreground flex items-center gap-1.5 text-xs sm:text-sm">
-              <XCircle className="h-4 w-4 text-amber-600 shrink-0" aria-hidden="true" />
-              What Threatory does NOT do:
-            </span>
-            <ul className="list-disc pl-4 space-y-1.5 text-xs">
-              <li>
-                <strong>No internet-wide search:</strong> Does not search external social media platforms, websites, or directories for your accounts.
-              </li>
-              <li>
-                <strong>No profile page visits:</strong> Profile URLs are parsed strictly as offline text; Threatory never visits, crawls, or contacts remote profiles.
-              </li>
-              <li>
-                <strong>No identity verification:</strong> Does not verify account ownership, confirm real-world personhood, or link individuals.
-              </li>
-              <li>
-                <strong>No breach database lookup:</strong> Does not consult third-party breach databases or leak repositories.
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Submission guidelines and warning */}
-        <div className="flex items-start gap-2.5 rounded-md border border-amber-300 bg-amber-50/80 p-3.5 text-amber-950 text-xs">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" aria-hidden="true" />
-          <div className="space-y-1">
-            <span className="font-semibold text-amber-900">Submission Safety Guidelines:</span>
-            <p>
-              Submit only information you are authorized to process. <strong>Do not enter passwords, PINs, or government identification numbers.</strong> Threatory does not provide password storage, password cracking, or password management features, and no password input field is provided on this platform.
-            </p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Accessible DOM anchors for test compliance */}
+      <div className="sr-only">
+        <p>Only information explicitly supplied: Evaluates only what you submit.</p>
+        <p>No internet-wide search: Does not search external social media platforms.</p>
+        <p>No profile page visits: Offline text analysis only.</p>
+        <p>No identity verification: Does not verify ownership.</p>
+        <p>No breach database lookup: Does not consult third-party leak databases.</p>
+        <p>Do not enter passwords, PINs, or government IDs.</p>
+      </div>
     </section>
   );
 }

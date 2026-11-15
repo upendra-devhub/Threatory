@@ -1,11 +1,10 @@
 "use client";
 
 import React from "react";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PrivacyScanForm } from "./PrivacyScanForm";
 import { PrivacyScanProgress } from "./PrivacyScanProgress";
 import { PrivacyResult } from "./PrivacyResult";
+import { PrivacyScopeNotice } from "./PrivacyScopeNotice";
 import { ErrorState } from "@/components/reports/ErrorState";
 import { usePrivacyScan } from "../hooks/usePrivacyScan";
 import { PrivacyScanRequest, Report } from "@threatory/contracts";
@@ -49,46 +48,54 @@ export function PrivacyAnalyzerView({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Privacy Exposure Analyzer"
-        description="Understand what personal information may be exposed through the usernames, profiles and text you choose to submit."
-      />
+      {/* Page Header */}
+      <div className="space-y-1">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          Privacy Analyzer
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-500 max-w-3xl leading-relaxed">
+          See what your own public details could reveal when taken together. You supply the information, and Threatory only analyses what you submit.
+        </p>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle as="h2">Submit profiles and text for privacy analysis</CardTitle>
-          <CardDescription>
-            Information provided is analyzed strictly as text to detect structural patterns, username reuse, and exposed identifiers. Threatory does not crawl social networks, fetch profile pages, or verify real-world identities.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <PrivacyScanForm
-            onSubmit={handleScan}
-            isLoading={privacyScan.isPending}
-            serverFieldErrors={privacyScan.serverFieldErrors}
-            resetTrigger={overrideTrigger || privacyScan.resetTrigger}
-          />
-        </CardContent>
-      </Card>
+      {/* Two Column Layout Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Form Card + Analysis Progress / Error / Result */}
+        <div className="lg:col-span-8 space-y-6">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <PrivacyScanForm
+              onSubmit={handleScan}
+              isLoading={privacyScan.isPending}
+              serverFieldErrors={privacyScan.serverFieldErrors}
+              resetTrigger={overrideTrigger || privacyScan.resetTrigger}
+            />
+          </div>
 
-      {/* Progress state during active scan */}
-      {privacyScan.isPending && <PrivacyScanProgress />}
+          {/* Progress state during active scan */}
+          {privacyScan.isPending && <PrivacyScanProgress />}
 
-      {/* General error state (rate limit, server error, timeout, network error) */}
-      {currentGeneralError && !privacyScan.isPending && (
-        <ErrorState
-          title="Analysis could not be completed"
-          description={currentGeneralError}
-          onRetry={privacyScan.lastSubmittedRequest ? privacyScan.retry : undefined}
-          isRetrying={privacyScan.isPending}
-          retryLabel="Retry analysis"
-        />
-      )}
+          {/* General error state (rate limit, server error, timeout, network error) */}
+          {currentGeneralError && !privacyScan.isPending && (
+            <ErrorState
+              title="Analysis could not be completed"
+              description={currentGeneralError}
+              onRetry={privacyScan.lastSubmittedRequest ? privacyScan.retry : undefined}
+              isRetrying={privacyScan.isPending}
+              retryLabel="Retry analysis"
+            />
+          )}
 
-      {/* Successful report result */}
-      {currentReport && !privacyScan.isPending && (
-        <PrivacyResult report={currentReport} />
-      )}
+          {/* Successful report result */}
+          {currentReport && !privacyScan.isPending && (
+            <PrivacyResult report={currentReport} />
+          )}
+        </div>
+
+        {/* Right Column: Information Cards */}
+        <div className="lg:col-span-4">
+          <PrivacyScopeNotice />
+        </div>
+      </div>
     </div>
   );
 }

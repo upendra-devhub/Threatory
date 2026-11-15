@@ -10,6 +10,9 @@
     "e2e"
   ],
   "scripts": {
+    "dev": "npm run dev -w frontend",
+    "dev:frontend": "npm run dev -w frontend",
+    "dev:backend": "npm start -w backend",
     "postinstall": "npm run build -w @threatory/contracts",
     "verify": "npm run build -w @threatory/contracts && npm run lint && npm run typecheck && npm run test && npm run build",
     "e2e": "playwright test",

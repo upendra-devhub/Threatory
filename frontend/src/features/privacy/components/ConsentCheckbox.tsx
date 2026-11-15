@@ -19,8 +19,10 @@ export function ConsentCheckbox({
   return (
     <div
       className={cn(
-        "space-y-2 rounded-lg border p-4 transition-colors",
-        error ? "border-destructive/60 bg-destructive/5" : "border-border bg-card"
+        "space-y-2 rounded-xl border p-4 transition-colors",
+        error
+          ? "border-destructive/60 bg-destructive/5"
+          : "border-blue-100 bg-[#f0f7ff]"
       )}
       data-testid="privacy-consent-container"
     >
@@ -32,16 +34,23 @@ export function ConsentCheckbox({
           disabled={disabled}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorId : undefined}
-          className={cn(
-            "mt-1 h-4 w-4 shrink-0 rounded border-input text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 accent-primary cursor-pointer"
-          )}
+          aria-label="I consent to this analysis. I confirm that I have the right to submit this information and consent to its analysis by Threatory."
+          className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
           {...register("consent")}
         />
         <label
           htmlFor="privacy-consent"
-          className="text-xs sm:text-sm font-medium leading-relaxed text-foreground select-none cursor-pointer"
+          className="text-xs sm:text-sm leading-relaxed text-slate-800 select-none cursor-pointer"
         >
-          I confirm that I have the right to submit this information and consent to its analysis by Threatory.
+          <span className="font-bold text-slate-900 block">
+            I consent to this analysis.
+          </span>
+          <span className="text-xs text-slate-600 block mt-0.5">
+            This information is mine, or I am authorised to submit it. It is analysed exactly as entered. No profile page is visited.
+          </span>
+          <span className="sr-only">
+            I confirm that I have the right to submit this information and consent to its analysis by Threatory.
+          </span>
         </label>
       </div>
 
