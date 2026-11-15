@@ -38,7 +38,7 @@ export function URLScanForm({
     mode: "onSubmit",
   });
 
-  const currentUrl = watch("url") || "";
+  const currentUrl = watch("url") ?? initialValue ?? "";
   const charCount = currentUrl.length;
 
   useEffect(() => {

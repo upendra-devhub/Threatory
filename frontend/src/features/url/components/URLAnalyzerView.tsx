@@ -14,6 +14,61 @@ export interface URLAnalyzerViewProps {
   initialReport?: Report | null;
 }
 
+export const DEFAULT_URL_DEMO_REPORT: Report = {
+  scanId: "scan-recent-01",
+  module: "url",
+  status: "completed",
+  rulesVersion: "url-1.0.0",
+  targetSummary: "http://198.51.100.23/login",
+  assessment: {
+    riskLevel: "medium",
+    label: "Medium",
+    score: 52,
+    scoreMeaning:
+      "Three rules matched: the host is a raw IP address, the link uses plain HTTP, and the path contains a login keyword. These are phishing-style patterns, not proof that the site is malicious.",
+  },
+  findings: [
+    {
+      code: "URL_IP_HOST",
+      category: "host",
+      title: "Host is an IP address",
+      outcome: "fail",
+      severity: "high",
+      evidence: "host: 198.51.100.23",
+      explanation:
+        "Legitimate services rarely ask you to sign in at a bare IP address.",
+    },
+    {
+      code: "URL_NO_HTTPS",
+      category: "scheme",
+      title: "Not using HTTPS",
+      outcome: "warn",
+      severity: "medium",
+      evidence: "scheme: http",
+      explanation: "Traffic to this address would not be encrypted.",
+    },
+    {
+      code: "URL_KEYWORDS",
+      category: "path",
+      title: "Suspicious keyword in path",
+      outcome: "warn",
+      severity: "medium",
+      evidence: "path: /login",
+      explanation:
+        "Words such as login or verify are common in credential-harvesting links.",
+    },
+  ],
+  limitations: [
+    "URL inspected as static text only; page was never visited or fetched",
+  ],
+  details: {
+    hostname: "198.51.100.23",
+    path: "/login",
+    matchedKeywords: ["login"],
+  },
+  createdAt: "2026-11-15T09:41:00.000Z",
+};
+
 export function URLAnalyzerView({
   onScanOverride,
   initialReport = null,

@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Module } from "@threatory/contracts";
-import { History as HistoryIcon, Link2, ShieldCheck, UserCheck } from "lucide-react";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { History as HistoryIcon } from "lucide-react";
 import { EmptyState } from "@/components/reports/EmptyState";
 import { ErrorState } from "@/components/reports/ErrorState";
 import { RetentionNotice } from "@/components/reports/RetentionNotice";
@@ -15,7 +14,7 @@ import { HistoryFilters } from "./HistoryFilters";
 import { HistoryPagination } from "./HistoryPagination";
 import { HistoryTable } from "./HistoryTable";
 
-const DEFAULT_LIMIT = 20;
+const DEFAULT_LIMIT = 9;
 
 export function HistoryView() {
   const router = useRouter();
@@ -98,16 +97,18 @@ export function HistoryView() {
   const isFiltered = Boolean(moduleFilter || statusFilter);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="History"
-        description="Browse and manage saved reports associated with your browser session."
-      />
+    <div className="space-y-6" data-testid="history-view">
+      {/* Page Header */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          Scan History
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-500 max-w-3xl leading-relaxed">
+          Every saved report from this browser. Targets are shown as plain text and are never opened as links.
+        </p>
+      </div>
 
-      {/* Retention Notice */}
-      <RetentionNotice />
-
-      {/* Filters */}
+      {/* Top Filter Controls (Segmented module pills, Search input, Risk level dropdown) */}
       <HistoryFilters
         module={moduleFilter}
         status={statusFilter}
@@ -116,9 +117,9 @@ export function HistoryView() {
         onReset={handleResetFilters}
       />
 
-      {/* Content State */}
+      {/* Main Content Area */}
       {isPending ? (
-        <div className="space-y-3 rounded-lg border border-border bg-card p-6 shadow-sm">
+        <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-64 w-full" />
         </div>
@@ -148,39 +149,38 @@ export function HistoryView() {
             title="No scans yet"
             description="You have not run any scans in this browser session. Start analyzing a URL, privacy footprint, or website below."
           >
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-              <Button variant="default" size="sm" asChild>
-                <Link href="/url-analyzer" className="gap-1.5">
-                  <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>URL Analyzer</span>
-                </Link>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <Button asChild size="sm" variant="outline">
+                <Link href="/url-analyzer">URL Analyzer</Link>
               </Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/privacy-analyzer" className="gap-1.5">
-                  <UserCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Privacy Analyzer</span>
-                </Link>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/privacy-analyzer">Privacy Analyzer</Link>
               </Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/website-auditor" className="gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Website Auditor</span>
-                </Link>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/website-auditor">Website Auditor</Link>
               </Button>
             </div>
           </EmptyState>
         )
       ) : (
         <div className="space-y-4">
+          {/* Main Scans Table */}
           <HistoryTable items={data.items} />
-          <HistoryPagination
-            page={data.page}
-            limit={data.limit}
-            total={data.total}
-            onPageChange={handlePageChange}
-          />
+
+          {/* Pagination Controls */}
+          {data.total > 0 && (
+            <HistoryPagination
+              page={data.page}
+              limit={data.limit}
+              total={data.total}
+              onPageChange={handlePageChange}
+            />
+          )}
         </div>
       )}
+
+      {/* Retention Notice Banner at bottom */}
+      <RetentionNotice />
     </div>
   );
 }

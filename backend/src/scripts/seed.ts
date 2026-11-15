@@ -73,7 +73,7 @@ export async function runSeed(customOwnerId?: string): Promise<string[]> {
   }
 
   const demoScans = [
-    // Top 5 recent scans (matching the screenshot exactly)
+    // Top 9 scans (matching page 1 of Scan History screenshot exactly)
     {
       scanId: "scan-recent-01",
       module: "url" as const,
@@ -110,65 +110,89 @@ export async function runSeed(customOwnerId?: string): Promise<string[]> {
       scanId: "scan-recent-05",
       module: "url" as const,
       status: "completed" as const,
+      targetSummary: "https://paypal.com@example.net/login",
+      assessment: { label: "High", riskLevel: "high" as const, score: 90 },
+      createdAt: "2026-11-14T10:05:00.000Z",
+    },
+    {
+      scanId: "scan-recent-06",
+      module: "website" as const,
+      status: "completed" as const,
+      targetSummary: "https://example.org",
+      assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
+      createdAt: "2026-11-13T15:48:00.000Z",
+    },
+    {
+      scanId: "scan-recent-07",
+      module: "privacy" as const,
+      status: "completed" as const,
+      targetSummary: "3 profiles, no text",
+      assessment: { label: "Low", riskLevel: "low" as const, score: 20 },
+      createdAt: "2026-11-13T09:20:00.000Z",
+    },
+    {
+      scanId: "scan-recent-08",
+      module: "url" as const,
+      status: "completed" as const,
+      targetSummary: "https://bit.ly.example-login.xyz/verify",
+      assessment: { label: "High", riskLevel: "high" as const, score: 90 },
+      createdAt: "2026-11-12T14:02:00.000Z",
+    },
+    {
+      scanId: "scan-recent-09",
+      module: "url" as const,
+      status: "completed" as const,
       targetSummary: "https://example.com/",
       assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
       createdAt: "2026-11-12T11:50:00.000Z",
     },
 
-    // 19 additional scans to bring totals to:
-    // URL: 12 total, Privacy: 5 total, Website: 7 total
-    // None detected: 9 total, Low: 6 total, Medium: 6 total, High: 3 total
-    // --- URL scans (9 remaining) ---
-    {
-      scanId: "scan-url-006",
-      module: "url" as const,
-      status: "completed" as const,
-      targetSummary: "https://github.com/upendra-devhub",
-      assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
-      createdAt: "2026-11-11T16:00:00.000Z",
-    },
-    {
-      scanId: "scan-url-007",
-      module: "url" as const,
-      status: "completed" as const,
-      targetSummary: "https://developer.mozilla.org/en-US/docs",
-      assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
-      createdAt: "2026-11-11T15:30:00.000Z",
-    },
-    {
-      scanId: "scan-url-008",
-      module: "url" as const,
-      status: "completed" as const,
-      targetSummary: "https://en.wikipedia.org/wiki/Web_security",
-      assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
-      createdAt: "2026-11-11T14:00:00.000Z",
-    },
-    {
-      scanId: "scan-url-009",
-      module: "url" as const,
-      status: "completed" as const,
-      targetSummary: "https://google.com/search?q=threatory",
-      assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
-      createdAt: "2026-11-11T12:00:00.000Z",
-    },
+    // 15 additional scans to bring totals to exactly:
+    // URL: 12, Privacy: 5, Website: 7 (Total 24)
+    // None detected: 9, Low: 6, Medium: 6, High: 3 (Total 24)
+    // Remaining URL: 7 items (5 None detected, 2 Low)
     {
       scanId: "scan-url-010",
       module: "url" as const,
       status: "completed" as const,
-      targetSummary: "https://microsoft.com/en-us",
+      targetSummary: "https://github.com/upendra-devhub",
       assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
-      createdAt: "2026-11-11T10:00:00.000Z",
+      createdAt: "2026-11-11T18:00:00.000Z",
     },
     {
       scanId: "scan-url-011",
       module: "url" as const,
       status: "completed" as const,
-      targetSummary: "https://cloudflare.com",
+      targetSummary: "https://developer.mozilla.org/en-US/docs",
       assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
-      createdAt: "2026-11-10T15:00:00.000Z",
+      createdAt: "2026-11-11T15:00:00.000Z",
     },
     {
       scanId: "scan-url-012",
+      module: "url" as const,
+      status: "completed" as const,
+      targetSummary: "https://en.wikipedia.org/wiki/Web_security",
+      assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
+      createdAt: "2026-11-11T12:00:00.000Z",
+    },
+    {
+      scanId: "scan-url-013",
+      module: "url" as const,
+      status: "completed" as const,
+      targetSummary: "https://google.com/search?q=threatory",
+      assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
+      createdAt: "2026-11-11T09:00:00.000Z",
+    },
+    {
+      scanId: "scan-url-014",
+      module: "url" as const,
+      status: "completed" as const,
+      targetSummary: "https://microsoft.com/en-us",
+      assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
+      createdAt: "2026-11-10T16:00:00.000Z",
+    },
+    {
+      scanId: "scan-url-015",
       module: "url" as const,
       status: "completed" as const,
       targetSummary: "http://legitimate-blog.org/news",
@@ -176,30 +200,22 @@ export async function runSeed(customOwnerId?: string): Promise<string[]> {
       createdAt: "2026-11-10T12:00:00.000Z",
     },
     {
-      scanId: "scan-url-013",
+      scanId: "scan-url-016",
       module: "url" as const,
       status: "completed" as const,
       targetSummary: "http://internal-portal.local/test",
       assessment: { label: "Low", riskLevel: "low" as const, score: 15 },
       createdAt: "2026-11-09T18:00:00.000Z",
     },
-    {
-      scanId: "scan-url-014",
-      module: "url" as const,
-      status: "completed" as const,
-      targetSummary: "http://legacy-system.corp.net/admin",
-      assessment: { label: "Low", riskLevel: "low" as const, score: 25 },
-      createdAt: "2026-11-09T14:00:00.000Z",
-    },
 
-    // --- Privacy reviews (4 remaining) ---
+    // Remaining Privacy: 3 items (2 None detected, 1 Medium)
     {
       scanId: "scan-priv-005",
       module: "privacy" as const,
       status: "completed" as const,
       targetSummary: "1 profile, text provided (340 characters)",
       assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
-      createdAt: "2026-11-14T12:00:00.000Z",
+      createdAt: "2026-11-11T16:00:00.000Z",
     },
     {
       scanId: "scan-priv-006",
@@ -207,7 +223,7 @@ export async function runSeed(customOwnerId?: string): Promise<string[]> {
       status: "completed" as const,
       targetSummary: "1 profile, text provided (580 characters)",
       assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
-      createdAt: "2026-11-13T16:00:00.000Z",
+      createdAt: "2026-11-10T14:00:00.000Z",
     },
     {
       scanId: "scan-priv-007",
@@ -215,65 +231,49 @@ export async function runSeed(customOwnerId?: string): Promise<string[]> {
       status: "completed" as const,
       targetSummary: "3 profiles, text provided (2,100 characters)",
       assessment: { label: "Medium", riskLevel: "medium" as const, score: 50 },
-      createdAt: "2026-11-13T11:00:00.000Z",
-    },
-    {
-      scanId: "scan-priv-008",
-      module: "privacy" as const,
-      status: "completed" as const,
-      targetSummary: "2 profiles, text provided (950 characters)",
-      assessment: { label: "High", riskLevel: "high" as const, score: 85 },
-      createdAt: "2026-11-12T17:00:00.000Z",
+      createdAt: "2026-11-09T11:00:00.000Z",
     },
 
-    // --- Website audits (6 remaining) ---
+    // Remaining Website: 5 items (2 Low, 3 Medium)
     {
       scanId: "scan-site-005",
       module: "website" as const,
       status: "completed" as const,
-      targetSummary: "https://antigravity.corp",
-      assessment: { label: "None detected", riskLevel: "none_detected" as const, score: 0 },
-      createdAt: "2026-11-10T10:00:00.000Z",
+      targetSummary: "https://my-company-security.io",
+      assessment: { label: "Low", riskLevel: "low" as const, score: 20 },
+      createdAt: "2026-11-11T14:00:00.000Z",
     },
     {
       scanId: "scan-site-006",
       module: "website" as const,
       status: "completed" as const,
-      targetSummary: "https://my-company-security.io",
-      assessment: { label: "Low", riskLevel: "low" as const, score: 20 },
-      createdAt: "2026-11-09T16:00:00.000Z",
+      targetSummary: "https://staging-app.example.org",
+      assessment: { label: "Low", riskLevel: "low" as const, score: 25 },
+      createdAt: "2026-11-10T10:00:00.000Z",
     },
     {
       scanId: "scan-site-007",
       module: "website" as const,
       status: "completed" as const,
-      targetSummary: "https://staging-app.example.org",
-      assessment: { label: "Low", riskLevel: "low" as const, score: 25 },
-      createdAt: "2026-11-09T11:00:00.000Z",
+      targetSummary: "https://corp-internal.dev",
+      assessment: { label: "Medium", riskLevel: "medium" as const, score: 45 },
+      createdAt: "2026-11-09T16:00:00.000Z",
     },
     {
       scanId: "scan-site-008",
       module: "website" as const,
       status: "completed" as const,
-      targetSummary: "https://corp-internal.dev",
-      assessment: { label: "Medium", riskLevel: "medium" as const, score: 45 },
+      targetSummary: "https://old-vpn-gateway.net",
+      assessment: { label: "Medium", riskLevel: "medium" as const, score: 60 },
       createdAt: "2026-11-08T15:00:00.000Z",
     },
     {
       scanId: "scan-site-009",
       module: "website" as const,
       status: "completed" as const,
-      targetSummary: "https://old-vpn-gateway.net",
+      targetSummary: "https://unpatched-portal.example.com",
       assessment: { label: "Medium", riskLevel: "medium" as const, score: 60 },
       createdAt: "2026-11-08T12:00:00.000Z",
-    },
-    {
-      scanId: "scan-site-010",
-      module: "website" as const,
-      status: "completed" as const,
-      targetSummary: "https://unpatched-portal.example.com",
-      assessment: { label: "High", riskLevel: "high" as const, score: 95 },
-      createdAt: "2026-11-07T14:00:00.000Z",
     },
   ];
 

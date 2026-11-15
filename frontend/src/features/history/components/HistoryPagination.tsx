@@ -1,5 +1,5 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React from "react";
+import { cn } from "@/lib/utils";
 
 export interface HistoryPaginationProps {
   page: number;
@@ -18,45 +18,56 @@ export function HistoryPagination({
   const startItem = total === 0 ? 0 : (page - 1) * limit + 1;
   const endItem = Math.min(page * limit, total);
 
+  // Generate page numbers array (e.g. [1, 2, 3])
+  const pages: number[] = [];
+  for (let i = 1; i <= totalPages; i++) {
+    pages.push(i);
+  }
+
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 py-2 text-sm text-muted-foreground">
-      <div className="text-xs">
-        Showing <span className="font-medium text-foreground">{startItem}</span> to{" "}
-        <span className="font-medium text-foreground">{endItem}</span> of{" "}
-        <span className="font-medium text-foreground">{total}</span> scans
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-2 pt-1 text-xs text-slate-500">
+      <div>
+        Showing <span className="font-medium text-slate-700">{startItem}–{endItem}</span> of{" "}
+        <span className="font-medium text-slate-700">{total}</span> reports
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-xs">
-          Page {page} of {totalPages}
-        </span>
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
-            aria-label="Go to previous page"
-            className="h-8 px-2"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only">Previous</span>
-          </Button>
+      <div className="flex items-center gap-1.5 self-end sm:self-auto">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+        >
+          Previous
+        </button>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => onPageChange(page + 1)}
-            aria-label="Go to next page"
-            className="h-8 px-2"
-          >
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only">Next</span>
-          </Button>
-        </div>
+        {pages.map((p) => {
+          const isActive = p === page;
+          return (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onPageChange(p)}
+              className={cn(
+                "rounded-lg px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer",
+                isActive
+                  ? "border border-blue-200 bg-[#eff6ff] text-blue-600 font-semibold"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              )}
+            >
+              {p}
+            </button>
+          );
+        })}
+
+        <button
+          type="button"
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+        >
+          Next
+        </button>
       </div>
     </div>
   );

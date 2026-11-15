@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { URLAnalyzerView } from "@/features/url";
+import { URLAnalyzerView, DEFAULT_URL_DEMO_REPORT } from "@/features/url";
 
 export const metadata: Metadata = {
   title: "URL Analyzer",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function UrlAnalyzerPage() {
-  return <URLAnalyzerView />;
+  return <URLAnalyzerView initialReport={DEFAULT_URL_DEMO_REPORT} />;
 }

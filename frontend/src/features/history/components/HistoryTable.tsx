@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { HistoryItem, Module, RiskLevel } from "@threatory/contracts";
-import { ArrowUpRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ChevronRight, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MODULE_LABELS: Record<Module, string> = {
@@ -13,17 +12,35 @@ const MODULE_LABELS: Record<Module, string> = {
   website: "Website",
 };
 
-const RISK_BADGE_CLASSES: Record<RiskLevel, string> = {
-  none_detected: "border-slate-300 bg-slate-100 text-slate-800",
-  low: "border-sky-300 bg-sky-50 text-sky-900",
-  medium: "border-amber-400 bg-amber-50 text-amber-950",
-  high: "border-red-600 bg-red-50 text-red-950 font-semibold",
+const MODULE_CLASSES: Record<Module, string> = {
+  url: "bg-[#eff6ff] text-[#2563eb]",
+  website: "bg-[#fff7ed] text-[#ea580c]",
+  privacy: "bg-[#ecfdf5] text-[#059669]",
 };
 
-const STATUS_BADGE_CLASSES: Record<HistoryItem["status"], string> = {
-  completed: "border-emerald-300 bg-emerald-50 text-emerald-900",
-  partial: "border-amber-400 bg-amber-50 text-amber-950",
-  failed: "border-red-400 bg-red-50 text-red-900",
+const RISK_BADGE_CLASSES: Record<RiskLevel, { badge: string; dot: string }> = {
+  none_detected: {
+    badge: "bg-[#dcfce7] text-[#15803d]",
+    dot: "bg-[#15803d]",
+  },
+  low: {
+    badge: "bg-[#fef9c3] text-[#a16207]",
+    dot: "bg-[#a16207]",
+  },
+  medium: {
+    badge: "bg-[#ffedd5] text-[#c2410c]",
+    dot: "bg-[#c2410c]",
+  },
+  high: {
+    badge: "bg-[#fee2e2] text-[#dc2626]",
+    dot: "bg-[#dc2626]",
+  },
+};
+
+const STATUS_DOT_CLASSES: Record<HistoryItem["status"], string> = {
+  completed: "bg-[#15803d]",
+  partial: "bg-[#b45309]",
+  failed: "bg-[#dc2626]",
 };
 
 function formatHistoryDate(isoTimestamp: string): string {
@@ -31,100 +48,120 @@ function formatHistoryDate(isoTimestamp: string): string {
   if (Number.isNaN(date.getTime())) {
     return isoTimestamp;
   }
-  return (
-    new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZone: "UTC",
-    }).format(date) + " UTC"
-  );
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "UTC",
+  }).format(date);
 }
 
 export interface HistoryTableProps {
   items: HistoryItem[];
+  onDelete?: (scanId: string) => void;
 }
 
-export function HistoryTable({ items }: HistoryTableProps) {
+export function HistoryTable({ items, onDelete }: HistoryTableProps) {
   const router = useRouter();
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm" aria-label="Scan history list">
-          <thead className="border-b border-border bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <thead className="border-b border-slate-100 bg-white text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             <tr>
-              <th scope="col" className="px-4 py-3">Date (UTC)</th>
-              <th scope="col" className="px-4 py-3">Module</th>
-              <th scope="col" className="px-4 py-3">Target</th>
-              <th scope="col" className="px-4 py-3">Assessment</th>
-              <th scope="col" className="px-4 py-3">Status</th>
-              <th scope="col" className="px-4 py-3 text-right">Action</th>
+              <th scope="col" className="px-6 py-3.5">WHEN</th>
+              <th scope="col" className="px-4 py-3.5">MODULE</th>
+              <th scope="col" className="px-4 py-3.5">TARGET</th>
+              <th scope="col" className="px-4 py-3.5">ASSESSMENT</th>
+              <th scope="col" className="px-4 py-3.5">STATUS</th>
+              <th scope="col" className="px-6 py-3.5 text-right"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-slate-100">
             {items.map((item) => {
               const reportUrl = `/reports/${encodeURIComponent(item.scanId)}`;
+              const riskCfg = RISK_BADGE_CLASSES[item.assessment.riskLevel] ?? RISK_BADGE_CLASSES.none_detected;
+              const statusDot = STATUS_DOT_CLASSES[item.status] ?? "bg-slate-400";
+
               return (
                 <tr
                   key={item.scanId}
                   onClick={() => router.push(reportUrl)}
-                  className="cursor-pointer transition-colors hover:bg-muted/40"
+                  className="cursor-pointer transition-colors hover:bg-slate-50/70"
                 >
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                  {/* When / Timestamp */}
+                  <td className="whitespace-nowrap px-6 py-3.5 text-xs font-medium text-slate-600">
                     <time dateTime={item.createdAt}>{formatHistoryDate(item.createdAt)}</time>
                   </td>
 
-                  <td className="whitespace-nowrap px-4 py-3">
-                    <Badge variant="secondary" className="text-xs">
+                  {/* Module badge */}
+                  <td className="whitespace-nowrap px-4 py-3.5">
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold",
+                        MODULE_CLASSES[item.module] ?? "bg-slate-100 text-slate-700"
+                      )}
+                    >
                       {MODULE_LABELS[item.module]}
-                    </Badge>
+                    </span>
                   </td>
 
-                  {/* CRITICAL: Target summary is rendered as PLAIN TEXT only. Never clickable, never raw privacy input */}
-                  <td className="max-w-xs px-4 py-3">
+                  {/* Plain text target - strictly not an <a> tag */}
+                  <td className="max-w-md px-4 py-3.5">
                     <span
                       data-testid="history-target-summary"
-                      className="block truncate font-mono text-xs text-foreground"
+                      className="block truncate font-mono text-xs text-slate-800"
                       title={item.targetSummary}
                     >
                       {item.targetSummary}
                     </span>
                   </td>
 
-                  <td className="whitespace-nowrap px-4 py-3">
+                  {/* Assessment risk badge */}
+                  <td className="whitespace-nowrap px-4 py-3.5">
                     <span
                       className={cn(
-                        "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium",
-                        RISK_BADGE_CLASSES[item.assessment.riskLevel]
+                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                        riskCfg.badge
                       )}
                     >
-                      {item.assessment.label}
+                      <span className={cn("h-1.5 w-1.5 rounded-full", riskCfg.dot)} aria-hidden="true" />
+                      <span>{item.assessment.label}</span>
                     </span>
                   </td>
 
-                  <td className="whitespace-nowrap px-4 py-3">
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium capitalize",
-                        STATUS_BADGE_CLASSES[item.status]
-                      )}
-                    >
-                      {item.status}
+                  {/* Status dot + text */}
+                  <td className="whitespace-nowrap px-4 py-3.5">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium capitalize text-slate-700">
+                      <span className={cn("h-1.5 w-1.5 rounded-full", statusDot)} aria-hidden="true" />
+                      <span>{item.status}</span>
                     </span>
                   </td>
 
-                  <td className="whitespace-nowrap px-4 py-3 text-right">
-                    <Link
-                      href={reportUrl}
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:underline focus-visible:outline-none"
-                    >
-                      <span>View report</span>
-                      <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
-                    </Link>
+                  {/* Actions: Trash button + Right Chevron Link */}
+                  <td className="whitespace-nowrap px-6 py-3.5 text-right">
+                    <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => onDelete?.(item.scanId)}
+                        aria-label={`Delete scan ${item.scanId}`}
+                        className="rounded-md p-1.5 text-slate-300 hover:text-slate-600 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+
+                      <Link
+                        href={reportUrl}
+                        aria-label={`View report ${item.scanId}`}
+                        className="rounded-md p-1 text-slate-300 hover:text-slate-600 transition-colors inline-flex items-center"
+                      >
+                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                        <span className="sr-only">View report</span>
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               );
