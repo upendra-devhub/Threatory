@@ -1,6 +1,7 @@
+"use client";
+
 import React from "react";
 import rawGoldenInputs from "@threatory/contracts/golden-inputs.json";
-import { Button } from "@/components/ui/button";
 
 export interface UrlExampleItem {
   id: string;
@@ -44,31 +45,26 @@ export interface URLExamplesProps {
 
 export function URLExamples({ onSelect, disabled = false }: URLExamplesProps) {
   return (
-    <div className="space-y-3 pt-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Sample demonstration URLs (click to populate):
-        </span>
+    <div className="space-y-1.5">
+      <div className="text-[11px] font-bold tracking-wider text-slate-400">
+        <span className="uppercase">SAMPLE INPUTS</span>
+        <span className="font-normal normal-case"> · click to fill, not opened</span>
       </div>
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+
+      <div className="flex flex-wrap gap-2">
         {URL_EXAMPLES.map((example) => (
-          <Button
+          <button
             key={example.id}
             type="button"
-            variant="outline"
             disabled={disabled}
             onClick={() => onSelect(example.url)}
-            className="flex h-auto flex-col items-start justify-start p-3 text-left transition-colors hover:border-primary/50 hover:bg-accent/40"
-            aria-label={`Fill ${example.label}: ${example.url}`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs transition-colors hover:bg-slate-50 hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:opacity-50"
+            aria-label={`${example.label}: ${example.url}`}
+            title={example.description}
           >
-            <span className="text-xs font-semibold text-foreground">{example.label}</span>
-            <span className="my-1 line-clamp-1 w-full break-all font-mono text-xs text-primary">
-              {example.url}
-            </span>
-            <span className="text-[11px] leading-tight text-muted-foreground">
-              {example.description}
-            </span>
-          </Button>
+            <span className="font-bold text-slate-800">{example.id}</span>
+            <span className="font-mono text-slate-600 text-[11px]">{example.url}</span>
+          </button>
         ))}
       </div>
     </div>
