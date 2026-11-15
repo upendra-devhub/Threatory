@@ -19,8 +19,10 @@ export function AuthorisationCheckbox({
   return (
     <div
       className={cn(
-        "space-y-2 rounded-lg border p-4 transition-colors",
-        error ? "border-destructive/60 bg-destructive/5" : "border-border bg-card"
+        "rounded-xl border p-4 transition-colors",
+        error
+          ? "border-destructive/60 bg-destructive/5"
+          : "border-[#fef08a] bg-[#fffbeb]"
       )}
       data-testid="website-authorisation-container"
     >
@@ -32,24 +34,27 @@ export function AuthorisationCheckbox({
           disabled={disabled}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorId : undefined}
-          className={cn(
-            "mt-1 h-4 w-4 shrink-0 rounded border-input text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 accent-primary cursor-pointer"
-          )}
+          className="mt-1 h-4 w-4 shrink-0 rounded border-amber-300 text-amber-700 focus:ring-amber-500 cursor-pointer accent-[#b45309]"
           {...register("authorised")}
         />
-        <label
-          htmlFor="website-authorisation"
-          className="text-xs sm:text-sm font-medium leading-relaxed text-foreground select-none cursor-pointer"
-        >
-          I own this site or have permission to assess it
-        </label>
+        <div>
+          <label
+            htmlFor="website-authorisation"
+            className="text-xs sm:text-sm font-bold text-slate-900 block select-none cursor-pointer"
+          >
+            I own this site or have permission to assess it
+          </label>
+          <p className="text-xs text-slate-600 mt-0.5">
+            Only run audits on sites you are authorised to test. Threatory sends a few standard requests and nothing intrusive.
+          </p>
+        </div>
       </div>
 
       {error && (
         <p
           id={errorId}
           role="alert"
-          className="text-xs font-medium text-destructive ml-7"
+          className="text-xs font-medium text-destructive mt-2 ml-7"
           data-testid="website-authorisation-error"
         >
           {error}
