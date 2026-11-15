@@ -1,51 +1,82 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  GlobeLock,
-  HelpCircle,
-  History,
-  LayoutDashboard,
+  CircleHelp,
+  Clock,
+  Globe,
+  LayoutGrid,
   Link2,
-  UserCheck,
+  User,
 } from "lucide-react";
 
 export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  ariaLabel?: string;
 }
 
-export const PRIMARY_NAV_ITEMS: readonly NavItem[] = [
+export interface NavGroup {
+  category: string;
+  items: NavItem[];
+}
+
+export const NAV_GROUPS: readonly NavGroup[] = [
   {
-    label: "Overview",
-    href: "/",
-    icon: LayoutDashboard,
+    category: "OVERVIEW",
+    items: [
+      {
+        label: "Dashboard",
+        ariaLabel: "Overview",
+        href: "/",
+        icon: LayoutGrid,
+      },
+    ],
   },
   {
-    label: "URL Analyzer",
-    href: "/url-analyzer",
-    icon: Link2,
+    category: "ANALYZERS",
+    items: [
+      {
+        label: "URL Analyzer",
+        ariaLabel: "URL Analyzer",
+        href: "/url-analyzer",
+        icon: Link2,
+      },
+      {
+        label: "Privacy Analyzer",
+        ariaLabel: "Privacy Analyzer",
+        href: "/privacy-analyzer",
+        icon: User,
+      },
+      {
+        label: "Website Auditor",
+        ariaLabel: "Website Auditor",
+        href: "/website-auditor",
+        icon: Globe,
+      },
+    ],
   },
   {
-    label: "Privacy Analyzer",
-    href: "/privacy-analyzer",
-    icon: UserCheck,
-  },
-  {
-    label: "Website Auditor",
-    href: "/website-auditor",
-    icon: GlobeLock,
-  },
-  {
-    label: "History",
-    href: "/history",
-    icon: History,
-  },
-  {
-    label: "Help",
-    href: "/help",
-    icon: HelpCircle,
+    category: "REPORTS",
+    items: [
+      {
+        label: "Scan History",
+        ariaLabel: "History",
+        href: "/history",
+        icon: Clock,
+      },
+      {
+        label: "Help and limits",
+        ariaLabel: "Help",
+        href: "/help",
+        icon: CircleHelp,
+      },
+    ],
   },
 ] as const;
+
+export const PRIMARY_NAV_ITEMS: readonly NavItem[] = NAV_GROUPS.flatMap(
+  (group) => group.items
+);
 
 export function isNavItemActive(pathname: string, href: string): boolean {
   if (href === "/") {
@@ -53,4 +84,3 @@ export function isNavItemActive(pathname: string, href: string): boolean {
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
-
