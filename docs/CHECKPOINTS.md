@@ -14,6 +14,7 @@
 | CP-10 | Website Auditor screen | Frontend | cp-09-done | cp-10-done | Person B |
 | CP-11 | History, report actions and dashboard | Full-stack | cp-10-done | cp-11-done | Person A |
 | CP-12 | Hardening, deployment and documentation | Full-stack | cp-11-done | cp-12-done | Person B |
+| CP-13 | Account System, Landing Page & Production Release | Full-stack | cp-12-done | cp-13-account-release-done | Senior Full-Stack Engineer |
 
 ## CP-01 Repository, contract and handoff system
 **Area:** Full-stack | **Builds on:** none (empty repository plus docs pack) | **Branch:** cp-01-repo-contract | **Saves as:** cp-01-done | **Suggested:** Person A
@@ -326,3 +327,26 @@
 - [ ] Tags `cp-12-done` and `v1.0.0` exist; HANDOFF shows all checkpoints complete.
 
 **Handoff note.** List the live URLs, secret rotation steps and remaining Known issues; next step is "maintenance".
+
+## CP-13 Account System, Landing Page & Production Release
+**Area:** Full-stack | **Builds on:** cp-12-done | **Branch:** main | **Saves as:** cp-13-account-release-done | **Suggested:** Senior Full-Stack Engineer
+
+**Goal.** Transform Threatory from a prototype into a production-ready application with persistent user accounts in MongoDB, Argon2id passwords, SHA-256 session tokens in HttpOnly cookies, authenticated report ownership, a public landing page at /, /signin and /signup, dashboard at /dashboard, and strict elimination of synthetic data.
+
+**Tasks**
+1. Audit existing authentication, ownership, and deployment setup.
+2. Implement user and session backend models, Argon2id hashing, 14-day TTL sessions, and `/api/auth/*` endpoints (`signup`, `signin`, `signout`, `me`, `delete`).
+3. Enforce authenticated report ownership on `/api/scans/*` and `/api/dashboard/*` via `requireAuth` middleware.
+4. Build frontend sign-in and sign-up pages matching UI designs with form validation and accessible error states.
+5. Build public landing page at `/`, move dashboard to `/dashboard`, implement route protection and session-aware navigation.
+6. Clean synthetic and demo data from production UI, enforce empty dashboard/history states, and prevent fixture leakage.
+7. Harden production configuration, rate limits, proxy trust, cookies, and CORS.
+8. Implement backend tests, frontend tests, and Playwright S1–S6 user journeys; update documentation and handoff.
+
+**Exit gate**
+- [ ] Sign-up, sign-in, session cookies, logout, and account deletion work.
+- [ ] Report endpoints require authentication and isolate ownership per user.
+- [ ] Public landing page at `/`, `/signin`, `/signup` work; `/dashboard` displays real data or clean empty state.
+- [ ] No synthetic fixtures in production code paths; seed command refuses in production.
+- [ ] `npm run verify` and `npm run e2e` pass with all golden and account journeys.
+- [ ] `docs/HANDOFF.md` updated.
