@@ -23,7 +23,7 @@ export function createApp(): Express {
 
   // Configurable trust proxy
   if (env.TRUST_PROXY !== undefined) {
-    if (env.TRUST_PROXY === "true" || env.TRUST_PROXY === "1") {
+    if (env.TRUST_PROXY === "true") {
       app.set("trust proxy", true);
     } else if (env.TRUST_PROXY === "false" || env.TRUST_PROXY === "0") {
       app.set("trust proxy", false);
