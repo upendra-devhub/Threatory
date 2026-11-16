@@ -18,7 +18,10 @@ This document provides a comprehensive security review of Threatory v1.0.0, deta
 
 | Threat Vector | Potential Impact | Threatory Mitigation |
 |---|---|---|
-| **Cross-Owner Report Access** | Attacker accesses another user's scan reports | Reports are indexed by `ownerId` derived from a cryptographically signed HttpOnly `tid` cookie. Reads and deletes strictly enforce `{ scanId, ownerId }`. |
+| **Cross-Owner Report Access** | Attacker accesses another user's scan reports | Reports are indexed by `ownerId` matching the authenticated user's ID. Reads, history, dashboard summaries, and deletes strictly enforce `{ scanId, ownerId }`. Cross-user access returns HTTP 404. |
+| **Credential & Password Compromise** | Database breach leaking user passwords | Passwords hashed using memory-hard Argon2id (`@node-rs/argon2`) with a minimum 10-character policy. Password hashes are never logged, never returned in API payloads, and excluded from queries. |
+| **Session Hijacking & Token Theft** | Attacker steals authentication tokens | Session tokens are 32 cryptographically secure random bytes stored only as SHA-256 hashes in MongoDB. The client receives the raw token inside an `HttpOnly`, `SameSite=Lax`, `Secure` (production) cookie named `sid`. Javascript cannot access the token. |
+| **Account Enumeration via Timing** | Attacker analyzes API response latency to discover registered emails | The `/api/auth/signin` endpoint performs dummy Argon2id hash verification when the requested email does not exist, equalizing response times. Sign-in errors use a single uniform message for unknown emails and bad passwords. |
 | **Server-Side Request Forgery (SSRF)** | Attacker tricks server into scanning internal services or cloud metadata | RFC-compliant IP classifier blocks private ranges (10/8, 172.16/12, 192.168/16), loopbacks (127/8, ::1), cloud metadata (169.254.169.254), CGNAT, and nonstandard ports with HTTP 422 `TARGET_BLOCKED`. |
 | **DNS Rebinding (TOCTOU)** | Attacker resolves domain to public IP, then switches to internal IP during fetch | The SSRF guard resolves DNS once, validates the IP, and pins the connection using Undici's custom connector (`net.connect({ host: resolvedIp, port })`). |
 | **Denial of Service (Oversized Payloads)** | Memory exhaustion from massive JSON bodies | Hard 20 KB body-parser limit (`express.json({ limit: "20kb" })`). Rejections return HTTP 400 `VALIDATION_ERROR` with no stack traces. |
@@ -30,16 +33,32 @@ This document provides a comprehensive security review of Threatory v1.0.0, deta
 
 ---
 
-## 3. Anonymous Owner Cookie (`tid`)
+## 3. User Authentication & Session Security (`sid`)
 
-- **Format:** Version 4 UUID (`crypto.randomUUID()`).
-- **Flags:**
-  - `HttpOnly: true`: Prevents client-side JavaScript access, protecting against XSS-based session hijacking.
-  - `Secure: true`: Enforced when `NODE_ENV === "production"`, ensuring cookies are only transmitted over HTTPS.
-  - `SameSite: "lax"`: Protects against cross-site request forgery (CSRF) on mutating requests.
-  - `Signed`: Signed with `COOKIE_SECRET` using HMAC-SHA256 via `cookie-parser`. Unsigned or tampered cookies are discarded and regenerated.
-  - `Max-Age`: 365 days.
-- **Production Guard:** `DEV_OWNER_ID` is strictly prohibited in production; backend environment validation terminates process startup if `DEV_OWNER_ID` is present with `NODE_ENV === "production"`.
+- **Password Hashing:**
+  - Algorithm: Argon2id (via `@node-rs/argon2`).
+  - Minimum Length: 10 characters (enforced by client form and backend Zod schema).
+  - Safety Invariant: Password hashes are never written to server logs and never returned in API responses.
+- **Session Tokens:**
+  - Token Generation: 32 cryptographically secure random bytes generated via `crypto.randomBytes(32).toString("hex")`.
+  - Database Storage: Tokens are hashed using SHA-256 before insertion into MongoDB `Session` collection (`tokenHash`). Raw tokens are never stored in the database.
+  - Expiration & Eviction: 14-day session lifespan enforced by MongoDB TTL index (`expireAfterSeconds: 0` on `expiresAt`).
+- **Cookie Security (`sid`):**
+  - `HttpOnly: true`: Prevents client-side JavaScript access, protecting against XSS-based session extraction.
+  - `Secure: true`: Enforced when `NODE_ENV === "production"`, ensuring cookies are transmitted strictly over HTTPS.
+  - `SameSite: "lax"`: Protects against cross-site request forgery (CSRF) on state-changing operations.
+  - `Path: "/"`: Scope covers all application routes and API endpoints.
+  - `Max-Age: 14 days` (1,209,600,000 ms).
+- **Cascade Account Deletion:**
+  - Endpoint `DELETE /api/auth/me` requires authentication.
+  - Atomically removes the user document from the `User` collection.
+  - Deletes all active sessions from the `Session` collection.
+  - Deletes all scans and reports belonging to that user's `ownerId` from the `Scan` collection.
+  - Clears the `sid` cookie.
+- **Rate Limiting:**
+  - Sign-up: 10 requests / 15 min per IP.
+  - Sign-in: 20 requests / 15 min per IP.
+  - Scan execution: 20 requests / 15 min per IP.
 
 ---
 

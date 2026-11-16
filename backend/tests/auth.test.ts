@@ -305,7 +305,7 @@ describe("Authentication & User Account System (CP-13)", () => {
         .post("/api/auth/signup")
         .send({ email: "userb@example.com", password: "passwordUserB123" });
       const cookieB = extractSidCookie(resB);
-      const userBId = resB.body.data.user.id;
+      expect(resB.body.data.user.id).toBeDefined();
 
       // User A creates a scan
       const scanA = await scanRepository.create({

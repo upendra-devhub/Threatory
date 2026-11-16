@@ -356,7 +356,7 @@ export function ReportView({ report, className }: ReportViewProps) {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" data-no-print>
           <Button
             type="button"
             variant="outline"
@@ -377,6 +377,49 @@ export function ReportView({ report, className }: ReportViewProps) {
             type="button"
             variant="outline"
             size="sm"
+            onClick={handleCopyMarkdown}
+            className="h-9 gap-1.5 rounded-xl border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-2xs"
+            aria-label="Copy report as Markdown"
+          >
+            {copiedMd ? (
+              <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
+            ) : (
+              <Copy className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+            )}
+            <span>{copiedMd ? "Copied Markdown!" : "Copy Markdown"}</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleCopyJson}
+            className="h-9 gap-1.5 rounded-xl border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-2xs"
+            aria-label="Copy report as JSON"
+          >
+            {copiedJson ? (
+              <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
+            ) : (
+              <Copy className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+            )}
+            <span>{copiedJson ? "Copied JSON!" : "Copy JSON"}</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handlePrint}
+            className="h-9 gap-1.5 rounded-xl border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-2xs"
+            aria-label="Print report"
+          >
+            <span>Print</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setIsDialogOpen(true)}
             className="h-9 gap-1.5 rounded-xl border-rose-200 bg-white px-3.5 text-xs font-medium text-rose-600 hover:bg-rose-50 hover:border-rose-300 shadow-2xs"
             aria-label="Delete report"
@@ -384,27 +427,6 @@ export function ReportView({ report, className }: ReportViewProps) {
             <Trash2 className="h-3.5 w-3.5 text-rose-600" aria-hidden="true" />
             <span>Delete report</span>
           </Button>
-
-          {/* Accessible buttons for test compatibility & export tools */}
-          <div className="sr-only">
-            <button
-              type="button"
-              onClick={handleCopyMarkdown}
-              aria-label="Copy report as Markdown"
-            >
-              {copiedMd ? "Copied Markdown!" : "Copy Markdown"}
-            </button>
-            <button
-              type="button"
-              onClick={handleCopyJson}
-              aria-label="Copy report as JSON"
-            >
-              {copiedJson ? "Copied JSON!" : "Copy JSON"}
-            </button>
-            <button type="button" onClick={handlePrint} aria-label="Print report">
-              Print
-            </button>
-          </div>
         </div>
       </div>
 

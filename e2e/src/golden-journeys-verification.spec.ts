@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test";
+import { createAndLoginUser } from "./auth-helper.js";
 
 test.describe("CP-12 Task 4: Complete Golden Journey Suite (Clean Browser Contexts)", () => {
+  test.beforeEach(async ({ page }) => {
+    await createAndLoginUser(page);
+  });
   // U1 — Suspicious URL
   test("Golden Journey U1 — Suspicious URL: http://198.51.100.23/login", async ({ page }) => {
     await page.goto("/url-analyzer");
@@ -17,7 +21,7 @@ test.describe("CP-12 Task 4: Complete Golden Journey Suite (Clean Browser Contex
     await expect(result).toBeVisible({ timeout: 15_000 });
 
     // Assessment check: score 50, riskLevel medium, label "Medium"
-    await expect(page.getByText("Medium", { exact: true })).toBeVisible();
+    await expect(page.getByText("Medium", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("50 / 100")).toBeVisible();
 
     // Findings check: URL_IP_HOST (fail), URL_NO_HTTPS (warn), URL_KEYWORDS (warn)
@@ -53,16 +57,16 @@ test.describe("CP-12 Task 4: Complete Golden Journey Suite (Clean Browser Contex
   // P1 — Privacy Exposure
   test("Golden Journey P1 — Privacy exposure: Jane.Doe / jane_doe", async ({ page }) => {
     await page.goto("/privacy-analyzer");
-    await expect(page.getByRole("heading", { name: "Privacy Exposure Analyzer", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Privacy.*Analyzer/i, level: 1 })).toBeVisible();
 
     // Profile 1: GitHub / Jane.Doe / https://github.com/jane-doe
-    await page.locator("#profiles\\.0\\.platform").fill("GitHub");
+    await page.locator("#profiles\\.0\\.platform").selectOption("GitHub");
     await page.locator("#profiles\\.0\\.username").fill("Jane.Doe");
     await page.locator("#profiles\\.0\\.url").fill("https://github.com/jane-doe");
 
     // Add Profile 2: X / jane_doe
     await page.getByRole("button", { name: /Add another profile/i }).click();
-    await page.locator("#profiles\\.1\\.platform").fill("X");
+    await page.locator("#profiles\\.1\\.platform").selectOption({ label: "X / Twitter" });
     await page.locator("#profiles\\.1\\.username").fill("jane_doe");
 
     // Submitted text with email and phone
@@ -101,11 +105,11 @@ test.describe("CP-12 Task 4: Complete Golden Journey Suite (Clean Browser Contex
   test("Golden Journey P2 — Normal privacy input: alpha_dev / zeta42", async ({ page }) => {
     await page.goto("/privacy-analyzer");
 
-    await page.locator("#profiles\\.0\\.platform").fill("GitHub");
+    await page.locator("#profiles\\.0\\.platform").selectOption("GitHub");
     await page.locator("#profiles\\.0\\.username").fill("alpha_dev");
 
     await page.getByRole("button", { name: /Add another profile/i }).click();
-    await page.locator("#profiles\\.1\\.platform").fill("Reddit");
+    await page.locator("#profiles\\.1\\.platform").selectOption("Reddit");
     await page.locator("#profiles\\.1\\.username").fill("zeta42");
 
     await page.getByLabel(/Text to analyze/i).fill("Just a normal sentence.");
@@ -138,7 +142,7 @@ test.describe("CP-12 Task 4: Complete Golden Journey Suite (Clean Browser Contex
       await page.goto("/website-auditor");
       const urlInput = page.getByLabel(/Target website URL/i);
       const authCheckbox = page.getByLabel("I own this site or have permission to assess it");
-      const submitBtn = page.getByRole("button", { name: /^Audit website$/i });
+      const submitBtn = page.getByRole("button", { name: /audit website|run audit/i });
 
       await urlInput.fill(target);
       await authCheckbox.check();
@@ -171,16 +175,16 @@ test.describe("CP-12 Task 4: Complete Golden Journey Suite (Clean Browser Contex
     await openReportLink.click();
 
     // Verify saved report view
-    await expect(page.getByText("Report ID:")).toBeVisible();
+    await expect(page.getByText("Report ID").first()).toBeVisible();
     await expect(page.getByText("Medium", { exact: true }).first()).toBeVisible();
 
     // Retention notice banner must be visible
     await expect(
-      page.getByText(/Session storage & retention/i)
+      page.getByText(/30 days/i).first()
     ).toBeVisible();
 
     // Delete report with confirmation
-    await page.getByRole("button", { name: /Delete report/i }).click();
+    await page.getByRole("button", { name: /Delete report/i }).first().click();
     const modal = page.getByRole("dialog");
     await expect(modal).toBeVisible();
     await modal.getByRole("button", { name: /Delete report/i }).click();

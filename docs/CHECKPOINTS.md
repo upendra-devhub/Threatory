@@ -344,9 +344,9 @@
 8. Implement backend tests, frontend tests, and Playwright S1–S6 user journeys; update documentation and handoff.
 
 **Exit gate**
-- [ ] Sign-up, sign-in, session cookies, logout, and account deletion work.
-- [ ] Report endpoints require authentication and isolate ownership per user.
-- [ ] Public landing page at `/`, `/signin`, `/signup` work; `/dashboard` displays real data or clean empty state.
-- [ ] No synthetic fixtures in production code paths; seed command refuses in production.
-- [ ] `npm run verify` and `npm run e2e` pass with all golden and account journeys.
-- [ ] `docs/HANDOFF.md` updated.
+- [x] Sign-up, sign-in, session cookies, logout, and account deletion work.
+- [x] Report endpoints require authentication and isolate ownership per user.
+- [x] Public landing page at `/`, `/signin`, `/signup` work; `/dashboard` displays real data or clean empty state.
+- [x] No synthetic fixtures in production code paths; seed command refuses in production.
+- [x] `npm run verify` and `npm run e2e` pass with all golden and account journeys.
+- [x] `docs/HANDOFF.md` updated.

@@ -11,17 +11,20 @@ Threatory is organized as an npm workspaces monorepo with strict boundary separa
 ```mermaid
 flowchart LR
     subgraph Client ["Client Browser"]
-        Browser["User Agent\n(Anonymous 'tid' Cookie)"]
+        Browser["User Agent\n(HttpOnly 'sid' Session Cookie)"]
     end
 
     subgraph Frontend ["Frontend Web Application (Next.js 15)"]
-        UI["App Router UI\n(React 19 / Tailwind / shadcn)"]
+        Landing["Public Landing Page (/)"]
+        AuthUI["Auth Pages (/signin, /signup)"]
+        UI["Protected App Router UI\n(Dashboard, Analyzers, History)"]
         Proxy["Next.js Server Proxy\n(/api/:path* Rewrite)"]
     end
 
     subgraph Backend ["Backend API Service (Express 4)"]
         MW["Middleware\n(Helmet / CORS / RateLimit / Cookie / Logger)"]
-        Owner["Owner Scoping Middleware\n(req.ownerId)"]
+        AuthMW["Session Middleware\n(attachSession / requireAuth)"]
+        AuthRouter["Auth Router (/api/auth)"]
         URLMod["URL Analyzer Engine"]
         PrivMod["Privacy Exposure Engine"]
         SiteMod["Website Auditor Engine\n(SSRF Guard)"]
@@ -29,27 +32,33 @@ flowchart LR
     end
 
     subgraph Database ["Persistence Layer"]
-        Mongo[("MongoDB 7.0\n(TTL Indexes: 7d / 30d)")]
+        MongoUser[("Users Collection\n(Unique email, Argon2id hash)")]
+        MongoSession[("Sessions Collection\n(SHA-256 tokens, 14d TTL)")]
+        MongoScans[("Scans Collection\n(Owner-scoped, 7d/30d TTL)")]
     end
 
-    Browser -->|HTTPS Navigation & UI Actions| UI
+    Browser -->|Public Traffic| Landing
+    Browser -->|Authentication| AuthUI
+    Browser -->|Protected App Navigation| UI
     UI -->|Relative /api Fetch| Proxy
+    AuthUI -->|Relative /api Fetch| Proxy
     Proxy -->|Server-to-Server HTTPS\nAPI_ORIGIN| MW
-    MW --> Owner
-    Owner --> URLMod
-    Owner --> PrivMod
-    Owner --> SiteMod
-    Owner --> Repo
-    URLMod --> Repo
-    PrivMod --> Repo
-    SiteMod --> Repo
-    Repo -->|Mongoose TLS| Mongo
+    MW --> AuthMW
+    AuthMW --> AuthRouter
+    AuthMW --> URLMod
+    AuthMW --> PrivMod
+    AuthMW --> SiteMod
+    AuthMW --> Repo
+    AuthRouter --> MongoUser
+    AuthRouter --> MongoSession
+    Repo -->|Mongoose TLS| MongoScans
 ```
 
 ### Key Architectural Invariants
-1. **First-Party Cookie Isolation:** The browser only talks to the frontend origin. Calls to `/api/...` are rewritten on the Next.js server to `API_ORIGIN`. As a result, the signed session cookie `tid` remains first-party with `SameSite=Lax` and `HttpOnly`.
-2. **Anonymous Browser Ownership:** No user accounts, registration, passwords, or emails exist. Every scan is stamped with an anonymous UUID stored in the signed cookie. All reads, lists, and deletions enforce `{ scanId, ownerId }` scoping.
-3. **Data Minimization:** No raw privacy inputs (`submittedText`), unmasked contact details, or website HTTP bodies/cookie values are ever stored in MongoDB or written to logs.
+1. **First-Party Cookie Isolation:** The browser only talks to the frontend origin. Calls to `/api/...` are rewritten on the Next.js server to `API_ORIGIN`. As a result, the session cookie `sid` remains first-party with `SameSite=Lax`, `HttpOnly=true`, and `Secure=true` in production.
+2. **Authenticated User Ownership:** Scans and reports are bound to the authenticated user's ID (`ownerId = user.userId`). All scans, history queries, and dashboard metrics require authentication via `requireAuth` middleware. Cross-user access returns `NOT_FOUND` (404) to prevent enumeration.
+3. **Password & Session Security:** Passwords are never stored in plaintext and are hashed using Argon2id (`@node-rs/argon2`). Session tokens contain 32 cryptographically secure random bytes; only their SHA-256 hashes are persisted in MongoDB. Sessions automatically expire after 14 days via a MongoDB TTL index.
+4. **Data Minimization:** No raw privacy inputs (`submittedText`), unmasked contact details, or website HTTP bodies/cookie values are ever stored in MongoDB or written to logs.
 
 ---
 
@@ -58,7 +67,10 @@ flowchart LR
 The frontend is built with Next.js 15 using the App Router:
 
 - **Routing Structure (`src/app/`):**
-  - `/`: Dashboard platform overview featuring stat cards, risk distribution donut chart, scans per module bar chart, and recent scans table.
+  - `/`: Public marketing landing page introducing Threatory's analyzers and mission.
+  - `/signin`: Sign in page with email/password validation and redirect support.
+  - `/signup`: Sign up page with client validation (10+ characters) and auto-login.
+  - `/dashboard`: Authenticated dashboard overview featuring stat cards, risk distribution donut chart, scans per module bar chart, and recent scans table (with empty state for zero-scan users).
   - `/url-analyzer`: URL input form, rule-based progress state, and result presentation.
   - `/privacy-analyzer`: Dynamic profile form (1–10 items), live character counter, mandatory consent checkbox, and masked result cards.
   - `/website-auditor`: Authorized target form with mandatory authorization confirmation, SSRF safety disclosure, and 4-category audit view.

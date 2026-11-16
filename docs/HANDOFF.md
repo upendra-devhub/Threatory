@@ -1,22 +1,78 @@
 # HANDOFF
 
 ## Baton
-- **Current owner:** `upendra-devhub`
-- **Updated:** 2026-11-14
+- **Current owner:** `upendra-devhub` / Senior Full-Stack Engineer
+- **Updated:** 2026-11-16
 - **Status:** READY FOR RELEASE
-- **Last completed checkpoint:** CP-12 (Hardening, deployment and documentation)
+- **Last completed checkpoint:** CP-13 (Account System, Landing Page & Production Release)
 - **Current branch:** `main`
-- **Working version:** `v1.0.0`
+- **Working version:** `v1.1.0`
 - **Direct push status:** Verified on `main` tracking `origin/main`
-- **Release tag status:** Ready for human verification (`cp-12-done` and `v1.0.0` tags to be applied by human reviewer)
+- **Release tag status:** Ready for human verification (`cp-13-account-release-done` tag to be applied by human reviewer)
 
 ## Exact next step
-The next phase is **maintenance**.
-All 12 development checkpoints (CP-01 through CP-12) have been completed, verified, hardened, tested, and documented.
+The next phase is **production release and maintenance**.
+All 13 development checkpoints (CP-01 through CP-13) have been completed, verified, hardened, tested, and documented.
 1. The human developer reviews the pushed changes on `origin/main`.
-2. The human developer executes the final verification gate: `npm run verify` and `npm run e2e`.
-3. The human developer applies the checkpoint tag `cp-12-done` and the release tag `v1.0.0`.
-4. The application transitions into ongoing maintenance and operational monitoring.
+2. The human developer executes the final verification gates: `npm run verify` and `npm run e2e`.
+3. The human developer applies the checkpoint tag `cp-13-account-release-done`.
+4. Deploy backend to Docker/Render and frontend to Next.js host with the configured environment variables.
+5. The application transitions into ongoing maintenance and operational monitoring.
+
+---
+
+## Account System, Landing Page & Production Release (CP-13)
+
+### Overview
+CP-13 transforms Threatory from an anonymous prototype into a secure, production-grade security application featuring persistent user accounts in MongoDB, authenticated report ownership, a public landing page, clean real-data dashboard and history, and deployment hardening.
+
+### 1. MongoDB Account & Session System
+- **User Model (`backend/src/models/User.ts`):**
+  - Schema: `userId` (UUID v4), `email` (lowercased, trimmed, unique index), `passwordHash` (Argon2id), `createdAt` (Date), `lastLoginAt` (Date, optional).
+  - Passwords hashed using Argon2id via `@node-rs/argon2`. Minimum length of 10 characters enforced on both client and server.
+  - Password hashes are strictly omitted from API responses and excluded from server logs.
+- **Session Model (`backend/src/models/Session.ts`):**
+  - Schema: `userId` (UUID v4), `tokenHash` (SHA-256 of 32 cryptographically secure random bytes), `expiresAt` (Date).
+  - Automated 14-day expiration enforced via MongoDB TTL index (`expireAfterSeconds: 0` on `expiresAt`).
+  - Raw session tokens are never stored in the database and never exposed through the API.
+  - Tokens are transmitted strictly via an HttpOnly cookie named `sid` (`SameSite=Lax`, `Secure=true` in production, `Path=/`, `Max-Age=14 days`).
+- **Timing Enumeration Mitigation:** Sign-in performs dummy Argon2id hash verification when the requested email does not exist, equalizing response latency and preventing account enumeration.
+
+### 2. Authentication API Endpoints
+| Method | Endpoint | Description | Rate Limit | Protection |
+|---|---|---|---|---|
+| `POST` | `/api/auth/signup` | Create user account, hash password, establish session, set `sid` cookie | 10 req / 15m | Strict origin check, JSON-only |
+| `POST` | `/api/auth/signin` | Validate credentials, verify Argon2id hash, establish session, set `sid` cookie | 20 req / 15m | Strict origin check, JSON-only, dummy hash timing guard |
+| `POST` | `/api/auth/signout` | Invalidate server session, clear `sid` cookie | General API limit | HttpOnly session cookie |
+| `GET` | `/api/auth/me` | Return authenticated user safe object (`id`, `email`, `createdAt`, `lastLoginAt`) | General API limit | `requireAuth` middleware |
+| `DELETE` | `/api/auth/me` | Delete account, cascade delete all sessions and user scans, clear `sid` cookie | General API limit | `requireAuth` middleware |
+
+### 3. Report Ownership & Access Isolation
+- The prototype anonymous cookie `tid` and `DEV_OWNER_ID` mechanism are eliminated from production report ownership.
+- All scan creation (`POST /api/scans/*`), history queries (`GET /api/scans`), dashboard summaries (`GET /api/dashboard/summary`), and report reads/deletes (`GET/DELETE /api/scans/:scanId`) enforce the `requireAuth` middleware.
+- Reports are scoped strictly to the authenticated user's `ownerId` (`user.userId`).
+- Cross-owner report access returns HTTP 404 `NOT_FOUND` rather than 403, preventing resource enumeration.
+- Account deletion cascades cleanly: removes the user record, removes all user sessions, and deletes all saved scans belonging to the user.
+
+### 4. Frontend Experience & Routes
+- **Public Landing Page (`/`):** Clean, professional public landing page matching `01_Landing_Page.png` with hero section, analyzer feature cards (URL, Privacy, Website), architectural trust indicators, and clear CTA buttons ("Get started" -> `/signup`, "Sign in" -> `/signin`).
+- **Sign In Page (`/signin`):** Minimalist card matching `02_Sign_In.png` with email and password inputs, show/hide password toggle, accessible error alerts, redirect query support (`?next=/dashboard`), and link to `/signup`.
+- **Sign Up Page (`/signup`):** Matches `03_Sign_Up.png` with email and password inputs, 10-character minimum client validation, password reveal toggle, link to `/signin`, and automatic sign-in on registration.
+- **Authenticated Dashboard (`/dashboard`):** Real-data dashboard. When no scans have been performed, renders the clean empty state matching `04_Dashboard_Empty.png` ("Run your first scan"). When scans exist, displays live metrics, risk distribution chart, module distribution, and recent scans.
+- **Route Protection (`ProtectedRoute` & `AuthContext`):** Unauthenticated access to `/dashboard`, `/url-analyzer`, `/privacy-analyzer`, `/website-auditor`, `/history`, and `/reports/*` immediately redirects to `/signin?next=<path>`. Authenticated access to `/` redirects to `/dashboard`.
+- **Navigation & AppShell:** Sidebar header links to `/dashboard` when authenticated and `/` when unauthenticated; sidebar displays the signed-in user's email, avatar, and an accessible "Sign out" button.
+
+### 5. Real-Data Cleanup
+- Removed hardcoded demonstration reports (`DEFAULT_URL_DEMO_REPORT`, `DEFAULT_WEBSITE_DEMO_REPORT`, demo cards) from `/url-analyzer` and `/website-auditor`.
+- Removed synthetic mock fallback data from `/dashboard` and `/history`.
+- Development seed script (`backend/src/scripts/seed.ts`) explicitly refuses to run in production (`NODE_ENV === "production"`).
+
+### 6. Production Deployment & Hardening
+- **`render.yaml`:** Full blueprint deploying backend Docker service (`threatory-api`) and frontend web service (`threatory-web`) with environment variables and health check routes.
+- **Docker (`backend/Dockerfile`):** Multi-stage build running as non-root user `node`.
+- **Internal Container Networking:** Next.js rewrite in `frontend/next.config.ts` supports `BACKEND_INTERNAL_URL` for internal Docker/private network communication while falling back to `API_ORIGIN`.
+- **Cookie Security:** HttpOnly, SameSite=Lax, and Secure=true in production.
+- **Reverse Proxy Support:** Express `TRUST_PROXY` configurable for reverse proxy / CDN deployments.
 
 ---
 
@@ -184,22 +240,31 @@ C:\Users\ASUS\bin\gitleaks.exe git --verbose
 | **CP-09** | Sana | 2026-11-13 | `cp-09-done` | Website Auditor engine, SSRF guard (RFC compliance, undici pinned connector, 3-hop redirect guard), 20 detection rules (DNS, TLS, Headers, Cookies), Promise.allSettled orchestration with 8s/25s timeouts, partial reports, 30-day TTL, zero body/cookie value storage. Verified on W1 (422), W2 (400), W3 (live). |
 | **CP-10** | Sana | 2026-11-14 | `cp-10-done` | Website Auditor screen (`/website-auditor`), mandatory authorisation checkbox, scope disclosures, 25s progress feedback, results grouped into 4 categories, partial banner naming unassessed checks, friendly `TARGET_BLOCKED` copy, 0 axe violations, Vitest unit suite, Playwright journeys. |
 | **CP-11** | Sana | 2026-11-14 | `cp-11-done` | History list, report actions, and platform dashboard. Backend `GET /api/scans` (filter/paginate), `GET /api/dashboard/summary` ($facet aggregation, sub-tag `cp-11a-done`), `DELETE /api/scans/:scanId`. Frontend `/history` with URL-synced filters/pagination; report actions (copy Markdown, copy JSON, print stylesheet, delete modal); `/` dashboard with stat cards, Recharts donut & bar charts, recent scans table. 21 E2E tests green. |
-| **CP-12** | upendra-devhub | 2026-11-14 | `cp-12-done` *(pending human tag)* | Security and abuse hardening (rate limits, payload limits, CORS, cookie flags, logger redaction, Gitleaks clean, SSRF regression), accessibility and polish (Help page `/help`, error boundaries `error.tsx` & `not-found.tsx`, SVG favicon, metadata), production configuration (multi-stage `backend/Dockerfile`, `.dockerignore`, graceful shutdown, `render.yaml`, `vercel.json`), Golden Journeys suite (27 E2E tests green), complete documentation (`README.md`, `architecture.md`, `security-notes.md`, `demo-script.md`, `HANDOFF.md`). Version `v1.0.0` ready. |
+| **CP-12** | upendra-devhub | 2026-11-14 | `cp-12-done` | Security and abuse hardening (rate limits, payload limits, CORS, cookie flags, logger redaction, Gitleaks clean, SSRF regression), accessibility and polish (Help page `/help`, error boundaries `error.tsx` & `not-found.tsx`, SVG favicon, metadata), production configuration (multi-stage `backend/Dockerfile`, `.dockerignore`, graceful shutdown, `render.yaml`, `vercel.json`), Golden Journeys suite (27 E2E tests green), complete documentation (`README.md`, `architecture.md`, `security-notes.md`, `demo-script.md`, `HANDOFF.md`). Version `v1.0.0` ready. |
+| **CP-13** | Senior Full-Stack Engineer | 2026-11-16 | `cp-13-account-release-done` *(pending human tag)* | Account system, user and session models, Argon2id passwords, SHA-256 session tokens in HttpOnly `sid` cookies, authenticated report ownership (`requireAuth`), public landing page (`/`), sign in (`/signin`), sign up (`/signup`), authenticated dashboard (`/dashboard`), real-data cleanup (synthetic fixtures removed from production paths, seed protection), deployment hardening (`render.yaml`, `TRUST_PROXY`), 33 Playwright E2E tests green. |
 
 ---
 
-## CP-12 Task Commits (Direct to `main`)
-1. `20d5ecd`: `CP-12: complete security and abuse hardening`
-2. `a139879`: `CP-12: finish accessibility and application polish`
-3. `f155d10`: `CP-12: prepare production configuration and deployment`
-4. `099f57d`: `CP-12: verify live golden journeys`
-5. `dc55592`: `CP-12: complete project and release documentation`
-6. *(current)*: `CP-12: finalize handoff and release preparation`
+## CP-13 Task Commits (Direct to `main`)
+1. `6d74942`: `CP-13: audit existing authentication and deployment`
+2. `e2925ad`: `CP-13: implement account and session backend`
+3. `f5770c9`: `CP-13: enforce authenticated report ownership`
+4. `c1f4206`: `CP-13: add sign in and sign up experience`
+5. `a4fd300`: `CP-13: add public landing page and route protection`
+6. `238522f`: `CP-13: remove synthetic production data`
+7. `a5d0510`: `CP-13: harden production configuration and deployment`
+8. *(current)*: `CP-13: complete tests and documentation`
 
 ---
 
 ## Decisions
-1. **Direct `main` Branch Override:** Per human developer prompt instructions, CP-12 work was conducted directly on `main` without creating a separate `cp-12-harden-ship` branch, pull request, or merge commit.
+1. **Argon2id for Password Hashing:** Employed `@node-rs/argon2` with default memory and parallelism parameters to provide robust, memory-hard resistance to GPU-based password cracking.
+2. **Persistent Hashed Sessions:** Generated 32 cryptographically random bytes (`crypto.randomBytes(32)`), stored only the SHA-256 hash in MongoDB `Session` collection, and returned the raw token in an HttpOnly `sid` cookie with 14-day TTL.
+3. **Timing Enumeration Mitigation:** When an unauthenticated user attempts to sign in with a non-existent email, the backend runs a dummy Argon2id hash verification against a pre-computed baseline hash to equalize response times and prevent account enumeration.
+4. **Cascade Account Deletion:** `DELETE /api/auth/me` deletes the user record, all active sessions in MongoDB, and all saved scans belonging to that `ownerId`, followed by clearing the session cookie.
+5. **Separation of Landing Page and Dashboard:** `/` is the public marketing landing page accessible to all visitors; `/dashboard` is the authenticated platform dashboard. Unauthenticated requests to `/dashboard` redirect to `/signin?next=/dashboard`. Authenticated requests to `/` redirect to `/dashboard`.
+6. **Elimination of Synthetic Production Fixtures:** Removed all hardcoded demo reports (`DEFAULT_URL_DEMO_REPORT`, `DEFAULT_WEBSITE_DEMO_REPORT`, demo cards) from `/url-analyzer` and `/website-auditor`. Clean empty states rendered when no scans exist. Seed script throws an explicit error if invoked in production.
+7. **Direct `main` Branch Delivery:** Per prompt instructions, all work was committed directly to `main` without creating auxiliary branches, pull requests, or merge requests. Tag `cp-13-account-release-done` is left for the human reviewer to apply.
 2. **Human Release Tagging:** Release tags `cp-12-done` and `v1.0.0` are reserved for the human developer upon final gate review, avoiding automated tagging conflicts.
 3. **PostCSS Override:** Added npm override `"overrides": { "postcss": "^8.5.33" }` in root `package.json` to resolve high-severity vulnerabilities (GHSA-qx2v-qp2m-jg93, GHSA-6g55-p6wh-862q) across Next.js and Tailwind without breaking upgrades.
 4. **Zod Vulnerability Evaluation:** Retained `zod@3.25.76` and formally proved non-exploitability of GHSA-mrhx-c7xc-m3w5 (resource consumption via unbounded collections) because Threatory enforces a 20 KB body-parser limit and all array schemas have explicit length constraints. Upgrading to Zod 4 was evaluated and rejected due to breaking API changes in error structures and `@hookform/resolvers`.

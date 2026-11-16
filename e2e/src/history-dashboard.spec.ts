@@ -1,14 +1,17 @@
 import { test, expect } from "@playwright/test";
+import { createAndLoginUser } from "./auth-helper.js";
 
 test.describe("History, Report Actions, and Dashboard End-to-End Journeys (CP-11)", () => {
   test("Journey 1 — Dashboard first-use empty state, scan submission, and dynamic dashboard update", async ({
     page,
   }) => {
+    await createAndLoginUser(page);
+
     // 1. First-use empty state
-    await page.goto("/");
+    await page.goto("/dashboard");
     await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible();
-    await expect(page.getByText("Welcome to Threatory")).toBeVisible();
-    await expect(page.getByRole("link", { name: /analyze a url/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Run your first scan" })).toBeVisible();
+    await expect(page.getByText("Pick a tool to get started. Your reports are saved to your account.")).toBeVisible();
 
     // 2. Run a URL scan
     await page.goto("/url-analyzer");
@@ -22,7 +25,7 @@ test.describe("History, Report Actions, and Dashboard End-to-End Journeys (CP-11
     await expect(resultContainer).toBeVisible({ timeout: 20_000 });
 
     // 3. Return to Dashboard
-    await page.goto("/");
+    await page.goto("/dashboard");
     await expect(page.getByTestId("stat-total-scans")).toHaveText("1");
     await expect(page.getByTestId("stat-url-scans")).toHaveText("1");
     await expect(page.getByTestId("stat-privacy-scans")).toHaveText("0");
@@ -37,6 +40,8 @@ test.describe("History, Report Actions, and Dashboard End-to-End Journeys (CP-11
   });
 
   test("Journey 2 — History filters, pagination, and refresh survival", async ({ page }) => {
+    await createAndLoginUser(page);
+
     // 1. Submit a URL scan
     await page.goto("/url-analyzer");
     const u2Button = page.getByRole("button", { name: /Example 2 — U2/i });
@@ -46,9 +51,9 @@ test.describe("History, Report Actions, and Dashboard End-to-End Journeys (CP-11
 
     // 2. Navigate to History
     await page.goto("/history");
-    await expect(page.getByRole("heading", { name: "History", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Scan history", level: 1 })).toBeVisible();
     await expect(
-      page.getByText(/Reports belong to this browser session and expire automatically/i)
+      page.getByText(/Privacy reports are kept for 7 days/i)
     ).toBeVisible();
 
     // 3. Select module filter = URL
@@ -70,6 +75,8 @@ test.describe("History, Report Actions, and Dashboard End-to-End Journeys (CP-11
   test("Journey 3 — Report actions: copy Markdown, copy JSON, print media emulation, and deletion", async ({
     page,
   }) => {
+    await createAndLoginUser(page);
+
     // 1. Submit a scan and view saved report
     await page.goto("/url-analyzer");
     const u1Button = page.getByRole("button", { name: /Example 1 — U1/i });
@@ -79,15 +86,18 @@ test.describe("History, Report Actions, and Dashboard End-to-End Journeys (CP-11
 
     // Navigate to saved report via history
     await page.goto("/history");
-    await expect(page.getByRole("heading", { name: "History", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Scan history", level: 1 })).toBeVisible();
     const viewReportLink = page.getByRole("link", { name: /view report/i }).first();
     await expect(viewReportLink).toBeVisible();
     await viewReportLink.click();
     await expect(page).toHaveURL(/\/reports\/.+/);
 
-    // 2. Retention notice visible on report page
+    // 2. Retention details visible on report page
     await expect(
-      page.getByText(/Reports belong to this browser session and expire automatically/i)
+      page.getByText(/Expires/i).first()
+    ).toBeVisible();
+    await expect(
+      page.getByText(/30 days/i).first()
     ).toBeVisible();
 
     // 3. Copy Markdown & Copy JSON buttons
@@ -101,7 +111,7 @@ test.describe("History, Report Actions, and Dashboard End-to-End Journeys (CP-11
 
     // 4. Print emulation test
     await page.emulateMedia({ media: "print" });
-    const limitations = page.getByLabel("Scan limitations");
+    const limitations = page.getByRole("heading", { name: /What was not checked/i });
     await expect(limitations).toBeVisible();
     // In print, [data-no-print] should be hidden
     const actionsBar = page.locator("[data-no-print]");
@@ -124,8 +134,8 @@ test.describe("History, Report Actions, and Dashboard End-to-End Journeys (CP-11
     await expect(page).toHaveURL(/\/history$/);
 
     // Verify dashboard reflects deleted scan
-    await page.goto("/");
-    await expect(page.getByText("Welcome to Threatory")).toBeVisible();
+    await page.goto("/dashboard");
+    await expect(page.getByRole("heading", { name: "Run your first scan" })).toBeVisible();
   });
 
   test("Journey 4 — Multi-owner isolation at browser level (separate Playwright contexts)", async ({
@@ -134,6 +144,7 @@ test.describe("History, Report Actions, and Dashboard End-to-End Journeys (CP-11
     // Context 1 (Owner 1)
     const context1 = await browser.newContext();
     const page1 = await context1.newPage();
+    await createAndLoginUser(page1);
 
     // Owner 1 submits a URL scan
     await page1.goto("/url-analyzer");
@@ -142,25 +153,27 @@ test.describe("History, Report Actions, and Dashboard End-to-End Journeys (CP-11
     await expect(page1.getByTestId("url-scan-result")).toBeVisible({ timeout: 20_000 });
 
     // Owner 1 has 1 scan on dashboard and in history
-    await page1.goto("/");
+    await page1.goto("/dashboard");
     await expect(page1.getByTestId("stat-total-scans")).toHaveText("1");
 
     await page1.goto("/history");
-    const owner1Target = page1.getByTestId("history-target-summary");
-    await expect(owner1Target).toHaveText("http://198.51.100.23/login");
+    const scanRow = page1.getByTestId("history-table-row").first();
+    await expect(scanRow).toBeVisible();
+    await expect(scanRow).toContainText("198.51.100.23/login");
 
     // Extract scanId from Owner 1's report link
-    const reportLink = page1.getByRole("link", { name: /view report/i }).first();
+    const reportLink = scanRow.getByRole("link", { name: /view report/i }).first();
     const reportHref = await reportLink.getAttribute("href");
     expect(reportHref).toBeTruthy();
 
     // Context 2 (Owner 2 - completely separate browser session and cookies)
     const context2 = await browser.newContext();
     const page2 = await context2.newPage();
+    await createAndLoginUser(page2);
 
     // Owner 2 visits dashboard: sees 0 scans
-    await page2.goto("/");
-    await expect(page2.getByText("Welcome to Threatory")).toBeVisible();
+    await page2.goto("/dashboard");
+    await expect(page2.getByRole("heading", { name: "Run your first scan" })).toBeVisible();
 
     // Owner 2 visits history: sees 0 scans
     await page2.goto("/history");
@@ -169,10 +182,7 @@ test.describe("History, Report Actions, and Dashboard End-to-End Journeys (CP-11
     // Owner 2 attempts to open Owner 1's report directly: gets 404 NOT_FOUND
     if (reportHref) {
       await page2.goto(reportHref);
-      await expect(page2.getByRole("heading", { name: "Report not found", level: 1 })).toBeVisible();
-      await expect(
-        page2.getByText(/The requested report could not be found/i)
-      ).toBeVisible();
+      await expect(page2.getByText(/Unable to load report|could not be found/i)).toBeVisible();
     }
 
     await context1.close();

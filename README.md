@@ -42,12 +42,14 @@ Threatory provides three deterministic, rule-based analyzers in one place. Every
 
 ## 2. Features
 
+- **Public Landing Page (`/`):** Professional public showcase of Threatory's deterministic security engines, trust indicators, and quick access to account registration and sign-in.
+- **Persistent User Accounts & Sessions:** Secure user authentication backed by MongoDB, Argon2id password hashing, and SHA-256 session token hashing stored in 14-day HttpOnly cookies (`sid`).
 - **URL Analyzer (`/url-analyzer`):** Evaluates URL strings as data to detect phishing signals (IP literals, lookalike typosquatting against the Tranco Top 10k domains, homoglyphs, brand spoofing subdomains, URL shorteners, open redirect parameters, and local threat feed matching). Computes a rule-based assessment score (0–100) and risk level. Never visits or fetches the target URL.
 - **Privacy Exposure Analyzer (`/privacy-analyzer`):** Reviews user-submitted profile handles and sample text (with mandatory consent) to detect username reuse, email exposure, phone number exposure, credential leaks (AWS keys, GitHub tokens, Slack tokens, Google API keys, private keys, JWTs), and payment card numbers via the Luhn algorithm. Automatically masks all sensitive evidence and enforces a strict zero-raw-storage guarantee.
 - **Website Security Auditor (`/website-auditor`):** Non-invasively audits public configuration of authorized websites across 4 categories: Connection & TLS, HTTP security headers, Cookie attributes, and DNS/email security (SPF, DMARC, CAA). Protected by an RFC-compliant SSRF guard with pinned DNS lookups and 3-hop redirect limits.
-- **Platform Dashboard (`/`):** Real-time aggregation of total scans, per-module metrics, risk distribution donut chart, scans-by-module bar chart, and recent scan list using MongoDB `$facet` aggregation.
+- **Platform Dashboard (`/dashboard`):** Real-time aggregation of total scans, per-module metrics, risk distribution donut chart, scans-by-module bar chart, and recent scan list using MongoDB `$facet` aggregation. Displays a clean empty state ("Run your first scan") when no scans exist.
 - **Scan History (`/history`):** URL-synchronized filtering by module and status, date range filtering, and clean pagination. Renders all user targets as strict plain text (no clickable external links).
-- **Report Actions:** Reopen saved reports via anonymous session cookies, copy sanitized reports as Markdown or JSON, emulate clean print stylesheets (`@media print` hiding chrome and navigation), and delete reports permanently.
+- **Report Actions:** Reopen saved reports via authenticated user session, copy sanitized reports as Markdown or JSON, emulate clean print stylesheets (`@media print` hiding chrome and navigation), and delete reports permanently.
 - **Help Center (`/help`):** Plain-language documentation covering methodology, analyzer scopes, storage rules, and retention timelines.
 
 ---
@@ -239,16 +241,26 @@ All endpoints return uniform JSON envelopes:
 - **Success:** `{ success: true, data: T }`
 - **Error:** `{ success: false, error: { code: string, message: string, fields?: Array<{ path, message }> } }`
 
+### Authentication Endpoints
+| Endpoint | Method | Purpose | Request Body |
+|---|---|---|---|
+| `/api/auth/signup` | `POST` | Register a new user account and start session | `{ email: string, password: string }` |
+| `/api/auth/signin` | `POST` | Authenticate existing user and start session | `{ email: string, password: string }` |
+| `/api/auth/signout` | `POST` | Invalidate current session and clear cookie | None |
+| `/api/auth/me` | `GET` | Get current authenticated user profile | None. Requires active session |
+| `/api/auth/me` | `DELETE` | Permanently delete account and all user data | None. Requires active session |
+
+### Analyzer & Report Endpoints
 | Endpoint | Method | Purpose | Request Body / Query |
 |---|---|---|---|
 | `/api/health` | `GET` | Service health status | None. Returns `{ status: "ok", timestamp }` |
-| `/api/scans/url` | `POST` | Inspect URL structure as data | `{ url: string }` (1–2048 chars) |
-| `/api/scans/privacy` | `POST` | Analyze personal info exposure | `{ profiles: Array<{ platform, username, url? }>, displayName?, submittedText?, consent: true }` |
-| `/api/scans/website` | `POST` | Audit public security configuration | `{ url: string, authorised: true }` |
-| `/api/scans` | `GET` | List owner's report history | Query: `module`, `status`, `from`, `to`, `page`, `limit` (max 50) |
-| `/api/scans/:scanId` | `GET` | Retrieve saved report | Path: `scanId` (UUID) |
-| `/api/scans/:scanId` | `DELETE` | Delete saved report | Path: `scanId` (UUID) |
-| `/api/dashboard/summary` | `GET` | Summary statistics and charts | None. Returns atomic `$facet` aggregation |
+| `/api/scans/url` | `POST` | Inspect URL structure as data | `{ url: string }` (1–2048 chars). Requires auth |
+| `/api/scans/privacy` | `POST` | Analyze personal info exposure | `{ profiles: Array<{ platform, username, url? }>, displayName?, submittedText?, consent: true }`. Requires auth |
+| `/api/scans/website` | `POST` | Audit public security configuration | `{ url: string, authorised: true }`. Requires auth |
+| `/api/scans` | `GET` | List owner's report history | Query: `module`, `status`, `from`, `to`, `page`, `limit` (max 50). Requires auth |
+| `/api/scans/:scanId` | `GET` | Retrieve saved report | Path: `scanId` (UUID). Requires auth |
+| `/api/scans/:scanId` | `DELETE` | Delete saved report | Path: `scanId` (UUID). Requires auth |
+| `/api/dashboard/summary` | `GET` | Summary statistics and charts | None. Returns atomic `$facet` aggregation. Requires auth |
 
 ---
 
@@ -275,13 +287,14 @@ All endpoints return uniform JSON envelopes:
 
 ## 12. Report Ownership and Retention
 
-- **Anonymous Browser Ownership:** Threatory uses an anonymous, cryptographically signed `HttpOnly`, `SameSite=Lax` session cookie named `tid`. No account registration, passwords, or emails are required.
-- **Owner Scoping:** All report retrieval, history listing, dashboard aggregations, and deletions are strictly filtered by the requesting browser's `ownerId`. Cross-owner access returns `NOT_FOUND` (404).
+- **Authenticated User Ownership:** Threatory reports are strictly owned by authenticated user accounts. User passwords are encrypted with Argon2id, and sessions are managed through a cryptographically secure 14-day `HttpOnly`, `SameSite=Lax` cookie named `sid`.
+- **Owner Scoping:** All report retrieval, history listing, dashboard aggregations, and deletions are strictly filtered by the authenticated user's `ownerId`. Cross-owner access returns `NOT_FOUND` (404) to prevent resource enumeration.
 - **Automated Retention (MongoDB TTL):**
+  - **User Sessions:** Expire after **14 days** via MongoDB TTL index on `expiresAt`.
   - **Privacy reports:** Expire after **7 days** (`expiresAt = createdAt + 7d`).
   - **URL reports:** Expire after **30 days** (`expiresAt = createdAt + 30d`).
   - **Website audit reports:** Expire after **30 days** (`expiresAt = createdAt + 30d`).
-- **Immediate Deletion:** Users can permanently delete any report at any time using the *Delete report* toolbar action.
+- **Cascade Deletion:** Users can delete individual reports, or delete their entire account via `DELETE /api/auth/me` which cascades to permanently delete the user account, all active sessions, and all associated reports.
 
 ---
 

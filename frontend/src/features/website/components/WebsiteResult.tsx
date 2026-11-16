@@ -1,6 +1,7 @@
 import React from "react";
 import type { Report } from "@threatory/contracts";
 import { Check, TriangleAlert, X, Ban } from "lucide-react";
+import { CertificateCard, type CertificateDetails } from "./CertificateCard";
 
 export interface WebsiteResultProps {
   report: Report;
@@ -192,6 +193,13 @@ export function WebsiteResult({ report }: WebsiteResultProps) {
           The absence of findings does not confirm that all checks passed
         </div>
       )}
+
+      {/* Certificate summary card */}
+      <CertificateCard
+        certificate={
+          (report.details?.tls as { certificate?: CertificateDetails } | undefined)?.certificate
+        }
+      />
 
       {/* Accessible test region satisfying contracts and vitest assertions */}
       <div className="sr-only">

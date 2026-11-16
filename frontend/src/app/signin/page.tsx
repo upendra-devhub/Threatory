@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth";
 
-export default function SignInPage() {
+function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signIn, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -180,5 +180,19 @@ export default function SignInPage() {
         </Link>
       </footer>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#f4f7fb]">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
+        </div>
+      }
+    >
+      <SignInForm />
+    </Suspense>
   );
 }

@@ -89,6 +89,7 @@ export function HistoryTable({ items, onDelete }: HistoryTableProps) {
               return (
                 <tr
                   key={item.scanId}
+                  data-testid="history-table-row"
                   onClick={() => router.push(reportUrl)}
                   className="cursor-pointer transition-colors hover:bg-slate-50/70"
                 >

@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createAndLoginUser } from "./auth-helper.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const partialFixturePath = path.resolve(
@@ -12,6 +13,7 @@ const partialFixture = JSON.parse(fs.readFileSync(partialFixturePath, "utf-8"));
 
 test.describe("Website Auditor End-to-End Journeys (CP-10 Task 5)", () => {
   test.beforeEach(async ({ page }) => {
+    await createAndLoginUser(page);
     await page.goto("/website-auditor");
     await expect(
       page.getByRole("heading", { name: "Website Auditor", level: 1 })
@@ -25,7 +27,7 @@ test.describe("Website Auditor End-to-End Journeys (CP-10 Task 5)", () => {
     const authCheckbox = page.getByLabel(
       "I own this site or have permission to assess it"
     );
-    const submitBtn = page.getByRole("button", { name: /^Audit website$/i });
+    const submitBtn = page.getByRole("button", { name: /audit website|run audit/i });
 
     await expect(urlInput).toBeVisible();
     await expect(authCheckbox).not.toBeChecked();
@@ -54,7 +56,7 @@ test.describe("Website Auditor End-to-End Journeys (CP-10 Task 5)", () => {
     const authCheckbox = page.getByLabel(
       "I own this site or have permission to assess it"
     );
-    const submitBtn = page.getByRole("button", { name: /^Audit website$/i });
+    const submitBtn = page.getByRole("button", { name: /audit website|run audit/i });
 
     // Golden Input W1: Loopback address http://127.0.0.1
     await urlInput.fill("http://127.0.0.1");
@@ -100,7 +102,7 @@ test.describe("Website Auditor End-to-End Journeys (CP-10 Task 5)", () => {
     const authCheckbox = page.getByLabel(
       "I own this site or have permission to assess it"
     );
-    const submitBtn = page.getByRole("button", { name: /^Audit website$/i });
+    const submitBtn = page.getByRole("button", { name: /audit website|run audit/i });
 
     await urlInput.fill("https://degraded-site.example.org");
     await authCheckbox.check();

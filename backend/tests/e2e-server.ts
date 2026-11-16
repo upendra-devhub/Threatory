@@ -32,9 +32,11 @@ export async function startE2EServer(portOverride?: number): Promise<E2EServerIn
   const { default: mongoose } = await import("mongoose");
   const { app } = await import("../src/app.js");
   const { Scan } = await import("../src/models/scan.js");
+  const { User } = await import("../src/models/user.js");
+  const { Session } = await import("../src/models/session.js");
 
   await mongoose.connect(mongoUri);
-  await Scan.init();
+  await Promise.all([Scan.init(), User.init(), Session.init()]);
 
   const server = app.listen(port, () => {
     console.log(`[E2E-BACKEND] Ready on port ${port} (MongoDB memory URI: ${mongoUri})`);

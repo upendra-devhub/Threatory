@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Globe, Link2, Plus, ShieldCheck, UserCheck } from "lucide-react";
-import { EmptyState } from "@/components/reports/EmptyState";
+import { Globe, Link2, Plus, UserCheck } from "lucide-react";
 import { ErrorState } from "@/components/reports/ErrorState";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardSummary } from "../hooks/useDashboardSummary";
 import { ModuleBarChart } from "./ModuleBarChart";

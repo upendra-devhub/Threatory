@@ -1,10 +1,12 @@
 import { test, expect } from "@playwright/test";
+import { createAndLoginUser } from "./auth-helper.js";
 
 test.describe("Privacy Analyzer End-to-End Journeys (Task 6)", () => {
   test.beforeEach(async ({ page }) => {
+    await createAndLoginUser(page);
     await page.goto("/privacy-analyzer");
     await expect(
-      page.getByRole("heading", { name: "Privacy Exposure Analyzer", level: 1 })
+      page.getByRole("heading", { name: /Privacy.*Analyzer/i, level: 1 })
     ).toBeVisible();
   });
 
@@ -16,7 +18,7 @@ test.describe("Privacy Analyzer End-to-End Journeys (Task 6)", () => {
     const username0 = page.locator("#profiles\\.0\\.username");
     const url0 = page.locator("#profiles\\.0\\.url");
 
-    await platform0.fill("GitHub");
+    await platform0.selectOption("GitHub");
     await username0.fill("Jane.Doe");
     await url0.fill("https://github.com/jane-doe");
 
@@ -26,7 +28,7 @@ test.describe("Privacy Analyzer End-to-End Journeys (Task 6)", () => {
     const platform1 = page.locator("#profiles\\.1\\.platform");
     const username1 = page.locator("#profiles\\.1\\.username");
 
-    await platform1.fill("X");
+    await platform1.selectOption({ label: "X / Twitter" });
     await username1.fill("jane_doe");
 
     // 3. Submitted text containing raw sensitive email and phone (P1 input)
@@ -139,12 +141,12 @@ test.describe("Privacy Analyzer End-to-End Journeys (Task 6)", () => {
     page,
   }) => {
     // Fill P2 profiles
-    await page.locator("#profiles\\.0\\.platform").fill("GitHub");
+    await page.locator("#profiles\\.0\\.platform").selectOption("GitHub");
     await page.locator("#profiles\\.0\\.username").fill("alpha_dev");
 
     await page.getByRole("button", { name: /Add another profile/i }).click();
 
-    await page.locator("#profiles\\.1\\.platform").fill("Reddit");
+    await page.locator("#profiles\\.1\\.platform").selectOption("Reddit");
     await page.locator("#profiles\\.1\\.username").fill("zeta42");
 
     await page.getByLabel(/Text to analyze/i).fill("Just a normal sentence.");
@@ -178,7 +180,7 @@ test.describe("Privacy Analyzer End-to-End Journeys (Task 6)", () => {
   });
 
   test("Journey 3 — Mandatory consent checkbox blocks submission", async ({ page }) => {
-    await page.locator("#profiles\\.0\\.platform").fill("GitHub");
+    await page.locator("#profiles\\.0\\.platform").selectOption("GitHub");
     await page.locator("#profiles\\.0\\.username").fill("test_user");
 
     const submitBtn = page.getByRole("button", { name: /^Analyze privacy exposure$/i });
@@ -239,8 +241,7 @@ test.describe("Privacy Analyzer End-to-End Journeys (Task 6)", () => {
     const urlInput = page.locator("#profiles\\.0\\.url");
     const textInput = page.getByLabel(/Text to analyze/i);
 
-    await platformInput.clear();
-    await platformInput.fill("GitHub");
+    await platformInput.selectOption("GitHub");
     await usernameInput.fill("preserved_user");
     await urlInput.fill("invalid-url-format");
     await textInput.fill("Preserved raw text");
@@ -270,7 +271,7 @@ test.describe("Privacy Analyzer End-to-End Journeys (Task 6)", () => {
     await expect(passwordInputs).toHaveCount(0);
 
     // Type sensitive values
-    await page.locator("#profiles\\.0\\.platform").fill("GitHub");
+    await page.locator("#profiles\\.0\\.platform").selectOption("GitHub");
     await page.locator("#profiles\\.0\\.username").fill("SecretUser123");
     await page.getByLabel(/Text to analyze/i).fill("Sensitive test content");
 
@@ -293,7 +294,7 @@ test.describe("Privacy Analyzer End-to-End Journeys (Task 6)", () => {
 
     // Confirm heading and scope notice
     await expect(
-      page.getByRole("heading", { name: "Privacy Exposure Analyzer", level: 1 })
+      page.getByRole("heading", { name: /Privacy.*Analyzer/i, level: 1 })
     ).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Privacy analysis scope notice" })

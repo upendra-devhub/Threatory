@@ -11,7 +11,6 @@ import {
   UserSafe,
   SignUpRequest,
   SignInRequest,
-  AuthResponse,
 } from "@threatory/contracts";
 import { z } from "zod";
 

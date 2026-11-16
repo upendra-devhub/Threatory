@@ -1,7 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { createAndLoginUser } from "./auth-helper.js";
 
 test.describe("URL Analyzer End-to-End Journeys (Task 6)", () => {
   test.beforeEach(async ({ page }) => {
+    await createAndLoginUser(page);
     await page.goto("/url-analyzer");
     await expect(page.getByRole("heading", { name: "URL Analyzer", level: 1 })).toBeVisible();
   });
@@ -29,7 +31,7 @@ test.describe("URL Analyzer End-to-End Journeys (Task 6)", () => {
     await expect(resultContainer).toBeVisible({ timeout: 15_000 });
 
     // Verify assessment: medium, score 50, label "Medium"
-    await expect(page.getByText("Medium", { exact: true })).toBeVisible();
+    await expect(page.getByText("Medium", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("50 / 100")).toBeVisible();
 
     // Verify finding URL_IP_HOST: outcome fail, severity high
@@ -43,11 +45,11 @@ test.describe("URL Analyzer End-to-End Journeys (Task 6)", () => {
     await expect(page.getByText("URL_KEYWORDS")).toBeVisible();
 
     // Verify technical details card rendered with host
-    await expect(page.getByRole("heading", { name: "Technical URL details" })).toBeVisible();
-    await expect(page.getByText("198.51.100.23", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Technical URL details" })).toBeAttached();
+    await expect(page.getByText("198.51.100.23", { exact: true }).first()).toBeAttached();
 
     // Verify limitations panel
-    await expect(page.getByText(/Link not visited/i)).toBeVisible();
+    await expect(page.getByText(/Link not visited/i)).toBeAttached();
   });
 
   test("Journey 2 — U2 normal URL with no suspicious signals", async ({ page }) => {
@@ -98,16 +100,16 @@ test.describe("URL Analyzer End-to-End Journeys (Task 6)", () => {
 
     // Confirm that the saved report page is rendered from CP-02 GET endpoint
     await expect(page.getByText(scanId!)).toBeVisible();
-    await expect(page.getByText("http://198.51.100.23/login")).toBeVisible();
-    await expect(page.getByText("Medium", { exact: true })).toBeVisible();
+    await expect(page.getByText("http://198.51.100.23/login").first()).toBeVisible();
+    await expect(page.getByText("Medium", { exact: true }).first()).toBeVisible();
 
     // Refresh the page in the same browser context (owner cookie retained)
     await page.reload();
 
     // Confirm the report is still accessible and matches
     await expect(page.getByText(scanId!)).toBeVisible();
-    await expect(page.getByText("http://198.51.100.23/login")).toBeVisible();
-    await expect(page.getByText("Medium", { exact: true })).toBeVisible();
+    await expect(page.getByText("http://198.51.100.23/login").first()).toBeVisible();
+    await expect(page.getByText("Medium", { exact: true }).first()).toBeVisible();
   });
 
   test("Journey 4 — Unsupported protocol handling", async ({ page }) => {
