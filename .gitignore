@@ -1,34 +1,140 @@
-# Dependencies
+# ==============================================================================
+# Threatory — Production .gitignore
+# Excludes all generated, environment, ephemeral, and non-essential files.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Dependencies & Package Managers
+# ------------------------------------------------------------------------------
 node_modules/
+*/node_modules/
 .pnp
 .pnp.js
+.pnp.*
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
 
-# Build and cache
+# ------------------------------------------------------------------------------
+# 2. Build & Compilation Outputs
+# ------------------------------------------------------------------------------
 dist/
+*/dist/
 build/
-.next/
+*/build/
 out/
+*/out/
+.next/
+*/.next/
 *.tsbuildinfo
 
-# Environment variables
+# ------------------------------------------------------------------------------
+# 3. Caches & Bundler Artifacts
+# ------------------------------------------------------------------------------
+.cache/
+*.cache
+.turbo/
+.swc/
+.parcel-cache/
+.eslintcache
+.prettiercache
+.stylelintcache
+
+# ------------------------------------------------------------------------------
+# 4. Environment Variables & Local Secrets
+# ------------------------------------------------------------------------------
 .env
 .env.*
+*.env
+*.env.*
 !.env.example
 !.env.*.example
 
-# Test & coverage
+# ------------------------------------------------------------------------------
+# 5. Testing, Coverage & Playwright Artifacts
+# ------------------------------------------------------------------------------
 coverage/
+*/coverage/
+.nyc_output/
 test-results/
 playwright-report/
+blob-report/
+playwright/.cache/
+.vitest/
 
-# Logs
+# ------------------------------------------------------------------------------
+# 6. Logs & Diagnostics
+# ------------------------------------------------------------------------------
+logs/
 *.log
+*.log.*
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+core
+core.*
 
-# OS / IDE
+# ------------------------------------------------------------------------------
+# 7. Local Databases & Persistence
+# ------------------------------------------------------------------------------
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.db
+mongodb-data/
+data/db/
+.mongodb/
+
+# ------------------------------------------------------------------------------
+# 8. Temporary Files, Archives & UI Screen Dumps
+# ------------------------------------------------------------------------------
+tmp/
+temp/
+scratch/
+*.tmp
+*.temp
+*.bak
+*.orig
+*.zip
+*.tar
+*.tar.gz
+Threatory_UI_Screens/
+
+# ------------------------------------------------------------------------------
+# 9. Operating System Artifacts
+# ------------------------------------------------------------------------------
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ------------------------------------------------------------------------------
+# 10. IDE, Editor & Developer Tooling
+# ------------------------------------------------------------------------------
 .vscode/
 .idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ------------------------------------------------------------------------------
+# 11. AI Assistants & Agent Sandboxes
+# ------------------------------------------------------------------------------
+.gemini/
+.claude/
+.cursor/
+.antigravity/
