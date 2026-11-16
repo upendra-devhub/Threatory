@@ -21,6 +21,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
   "devDependencies": {
     "@eslint/js": "^9.14.0",
     "@types/node": "^26.6.6",

@@ -40,14 +40,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4000
 
-# Copy workspace dependencies and built distribution packages
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/packages/contracts/package.json ./packages/contracts/package.json
-COPY --from=builder /app/packages/contracts/dist ./packages/contracts/dist
-COPY --from=builder /app/backend/package.json ./backend/package.json
-COPY --from=builder /app/backend/dist ./backend/dist
-COPY --from=builder /app/backend/data ./backend/data
+# Copy workspace dependencies and built distribution packages (including workspace node_modules)
+COPY --chown=node:node --from=builder /app/node_modules ./node_modules
+COPY --chown=node:node --from=builder /app/package.json ./package.json
+COPY --chown=node:node --from=builder /app/packages/contracts ./packages/contracts
+COPY --chown=node:node --from=builder /app/backend ./backend
 
 # Run as non-root user for security hardening
 USER node
