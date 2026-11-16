@@ -27,7 +27,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       {
         label: "Dashboard",
         ariaLabel: "Overview",
-        href: "/",
+        href: "/dashboard",
         icon: LayoutGrid,
       },
     ],
@@ -79,8 +79,8 @@ export const PRIMARY_NAV_ITEMS: readonly NavItem[] = NAV_GROUPS.flatMap(
 );
 
 export function isNavItemActive(pathname: string, href: string): boolean {
-  if (href === "/") {
-    return pathname === "/";
+  if (href === "/dashboard") {
+    return pathname === "/dashboard";
   }
   if (href === "/history" && pathname.startsWith("/reports")) {
     return true;

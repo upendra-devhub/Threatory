@@ -8,6 +8,10 @@ import {
   Report,
   UrlScanRequest,
   WebsiteScanRequest,
+  UserSafe,
+  SignUpRequest,
+  SignInRequest,
+  AuthResponse,
 } from "@threatory/contracts";
 import { z } from "zod";
 
@@ -26,6 +30,8 @@ export const FRIENDLY_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   RATE_LIMITED: "Too many requests. Try again later.",
   INTERNAL: "Something went wrong while processing the request.",
   UPSTREAM_FAILURE: "A required external service could not complete the operation.",
+  UNAUTHORIZED: "Invalid email or password",
+  CONFLICT: "An account with this email already exists.",
 };
 
 export interface ApiClientErrorOptions {
@@ -104,6 +110,7 @@ export const queryKeys = {
   websiteScan: () => ["website-scan"] as const,
   history: (params: HistoryQueryParams = {}) => ["history", params] as const,
   dashboardSummary: () => ["dashboard-summary"] as const,
+  authMe: () => ["auth-me"] as const,
 };
 
 function createAbortError(): Error {
@@ -532,5 +539,113 @@ export async function checkApiHealth(
       throw error;
     }
     return { available: false };
+  }
+}
+
+export async function signUp(
+  data: SignUpRequest,
+  options: ApiRequestOptions = {}
+): Promise<UserSafe> {
+  return requestApi<UserSafe>(
+    "/api/auth/signup",
+    (payload) => {
+      const parsed = z.object({ success: z.literal(true), data: z.object({ user: UserSafe }) }).safeParse(payload);
+      if (!parsed.success) {
+        return { success: false };
+      }
+      return { success: true, data: parsed.data.data.user };
+    },
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers ?? {}),
+      },
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export async function signIn(
+  data: SignInRequest,
+  options: ApiRequestOptions = {}
+): Promise<UserSafe> {
+  return requestApi<UserSafe>(
+    "/api/auth/signin",
+    (payload) => {
+      const parsed = z.object({ success: z.literal(true), data: z.object({ user: UserSafe }) }).safeParse(payload);
+      if (!parsed.success) {
+        return { success: false };
+      }
+      return { success: true, data: parsed.data.data.user };
+    },
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers ?? {}),
+      },
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export async function signOut(
+  options: ApiRequestOptions = {}
+): Promise<boolean> {
+  try {
+    const res = await performRelativeFetch("/api/auth/signout", {
+      ...options,
+      method: "POST",
+      defaultTimeoutMs: options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function getAuthMe(
+  options: ApiRequestOptions = {}
+): Promise<UserSafe | null> {
+  try {
+    const response = await performRelativeFetch("/api/auth/me", {
+      ...options,
+      defaultTimeoutMs: options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+    });
+
+    if (response.status === 401 || !response.ok) {
+      return null;
+    }
+
+    const payload = await parseJsonBody(response);
+    const parsed = z.object({ success: z.literal(true), data: z.object({ user: UserSafe }) }).safeParse(payload);
+    if (!parsed.success) {
+      return null;
+    }
+
+    return parsed.data.data.user;
+  } catch (error) {
+    if (options.signal?.aborted || isAbortError(error)) {
+      throw error;
+    }
+    return null;
+  }
+}
+
+export async function deleteAccount(
+  options: ApiRequestOptions = {}
+): Promise<boolean> {
+  try {
+    const response = await performRelativeFetch("/api/auth/me", {
+      ...options,
+      method: "DELETE",
+      defaultTimeoutMs: options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+    });
+    return response.ok;
+  } catch {
+    return false;
   }
 }

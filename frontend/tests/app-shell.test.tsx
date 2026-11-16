@@ -37,7 +37,7 @@ describe("AppShell and ApiStatusIndicator", () => {
     expect(screen.getAllByText("Threatory").length).toBeGreaterThan(0);
 
     const expectedRoutes = [
-      { name: "Overview", href: "/" },
+      { name: "Overview", href: "/dashboard" },
       { name: "URL Analyzer", href: "/url-analyzer" },
       { name: "Privacy Analyzer", href: "/privacy-analyzer" },
       { name: "Website Auditor", href: "/website-auditor" },
