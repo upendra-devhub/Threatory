@@ -11,12 +11,13 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Copy root manifest and workspace package files
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/contracts/package.json ./packages/contracts/
 COPY backend/package.json ./backend/
 
 # Install all workspace dependencies for contracts and backend
-RUN npm ci --workspace=@threatory/contracts --workspace=backend
+# Use --ignore-scripts so root postinstall doesn't run before source files are copied
+RUN npm ci --workspace=@threatory/contracts --workspace=backend --ignore-scripts
 
 # Copy source code and build configs
 COPY packages/contracts/ ./packages/contracts/
@@ -27,7 +28,7 @@ RUN npm run build -w @threatory/contracts
 RUN npm run build -w backend
 
 # Prune devDependencies to keep only production dependencies
-RUN npm prune --omit=dev --workspace=@threatory/contracts --workspace=backend
+RUN npm prune --omit=dev --workspace=@threatory/contracts --workspace=backend --ignore-scripts
 
 # ------------------------------------------------------------------------------
 # Stage 2: Production Runner
