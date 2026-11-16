@@ -6,6 +6,7 @@ import { app } from "../src/app.js";
 import { Scan } from "../src/models/scan.js";
 import { scanRepository } from "../src/repositories/scanRepository.js";
 import { runSeed } from "../src/scripts/seed.js";
+import { createAuthenticatedSession } from "./test-auth-helper.js";
 
 describe("Scans, Ownership Isolation, and TTL Index", () => {
   let mongod: MongoMemoryServer;
@@ -85,92 +86,68 @@ describe("Scans, Ownership Isolation, and TTL Index", () => {
 
   describe("HTTP Route Level Isolation", () => {
     it("two clients with different cookie identities cannot read or delete each other's scans", async () => {
-      const originalDevOwner = process.env.DEV_OWNER_ID;
-      delete process.env.DEV_OWNER_ID;
+      const sessionA = await createAuthenticatedSession(app, "client-a-scans@example.com");
+      const cookieA = sessionA.cookie;
+      const clientAOwnerId = sessionA.userId;
 
-      try {
-        const resA = await request(app).get("/api/health");
-        const rawCookieA = resA.headers["set-cookie"];
-        expect(rawCookieA).toBeDefined();
-        const cookieA: string[] = Array.isArray(rawCookieA)
-          ? rawCookieA
-          : [rawCookieA ?? ""];
+      const sessionB = await createAuthenticatedSession(app, "client-b-scans@example.com");
+      const cookieB = sessionB.cookie;
 
-        const resB = await request(app).get("/api/health");
-        const rawCookieB = resB.headers["set-cookie"];
-        expect(rawCookieB).toBeDefined();
-        const cookieB: string[] = Array.isArray(rawCookieB)
-          ? rawCookieB
-          : [rawCookieB ?? ""];
+      expect(cookieA).not.toEqual(cookieB);
+      expect(clientAOwnerId).toBeTruthy();
 
-        expect(cookieA).not.toEqual(cookieB);
+      await scanRepository.create({
+        scanId: "http-scan-001",
+        ownerId: clientAOwnerId,
+        module: "url",
+        status: "completed",
+        rulesVersion: "url-1.0.0",
+        targetSummary: "https://example.com/client-a",
+        assessment: {
+          label: "Low",
+          riskLevel: "low",
+          score: 10,
+        },
+        findings: [],
+        limitations: ["No limitations"],
+      });
 
-        let clientAOwnerId = "";
-        const cookieStr = cookieA[0] || "";
-        const match = cookieStr.match(/tid=s%3A([^.;]+)/);
-        if (match && match[1]) {
-          clientAOwnerId = decodeURIComponent(match[1]);
-        }
+      const readA = await request(app)
+        .get("/api/scans/http-scan-001")
+        .set("Cookie", cookieA);
+      expect(readA.status).toBe(200);
+      expect(readA.body.success).toBe(true);
+      expect(readA.body.data.scanId).toBe("http-scan-001");
 
-        expect(clientAOwnerId).toBeTruthy();
+      const readB = await request(app)
+        .get("/api/scans/http-scan-001")
+        .set("Cookie", cookieB);
+      expect(readB.status).toBe(404);
+      expect(readB.body.success).toBe(false);
+      expect(readB.body.error.code).toBe("NOT_FOUND");
 
-        await scanRepository.create({
-          scanId: "http-scan-001",
-          ownerId: clientAOwnerId,
-          module: "url",
-          status: "completed",
-          rulesVersion: "url-1.0.0",
-          targetSummary: "https://example.com/client-a",
-          assessment: {
-            label: "Low",
-            riskLevel: "low",
-            score: 10,
-          },
-          findings: [],
-          limitations: ["No limitations"],
-        });
+      const delB = await request(app)
+        .delete("/api/scans/http-scan-001")
+        .set("Cookie", cookieB);
+      expect(delB.status).toBe(404);
+      expect(delB.body.success).toBe(false);
+      expect(delB.body.error.code).toBe("NOT_FOUND");
 
-        const readA = await request(app)
-          .get("/api/scans/http-scan-001")
-          .set("Cookie", cookieA);
-        expect(readA.status).toBe(200);
-        expect(readA.body.success).toBe(true);
-        expect(readA.body.data.scanId).toBe("http-scan-001");
+      const verifyA = await request(app)
+        .get("/api/scans/http-scan-001")
+        .set("Cookie", cookieA);
+      expect(verifyA.status).toBe(200);
 
-        const readB = await request(app)
-          .get("/api/scans/http-scan-001")
-          .set("Cookie", cookieB);
-        expect(readB.status).toBe(404);
-        expect(readB.body.success).toBe(false);
-        expect(readB.body.error.code).toBe("NOT_FOUND");
+      const delA = await request(app)
+        .delete("/api/scans/http-scan-001")
+        .set("Cookie", cookieA);
+      expect(delA.status).toBe(200);
+      expect(delA.body.data.deleted).toBe(true);
 
-        const delB = await request(app)
-          .delete("/api/scans/http-scan-001")
-          .set("Cookie", cookieB);
-        expect(delB.status).toBe(404);
-        expect(delB.body.success).toBe(false);
-        expect(delB.body.error.code).toBe("NOT_FOUND");
-
-        const verifyA = await request(app)
-          .get("/api/scans/http-scan-001")
-          .set("Cookie", cookieA);
-        expect(verifyA.status).toBe(200);
-
-        const delA = await request(app)
-          .delete("/api/scans/http-scan-001")
-          .set("Cookie", cookieA);
-        expect(delA.status).toBe(200);
-        expect(delA.body.data.deleted).toBe(true);
-
-        const verifyDeleted = await request(app)
-          .get("/api/scans/http-scan-001")
-          .set("Cookie", cookieA);
-        expect(verifyDeleted.status).toBe(404);
-      } finally {
-        if (originalDevOwner !== undefined) {
-          process.env.DEV_OWNER_ID = originalDevOwner;
-        }
-      }
+      const verifyDeleted = await request(app)
+        .get("/api/scans/http-scan-001")
+        .set("Cookie", cookieA);
+      expect(verifyDeleted.status).toBe(404);
     });
   });
 

@@ -9,9 +9,9 @@ dashboardRouter.get(
   "/summary",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const ownerId = req.ownerId;
+      const ownerId = req.userId || req.ownerId;
       if (!ownerId) {
-        throw new AppError("INTERNAL", "Missing owner identification");
+        throw new AppError("UNAUTHORIZED", "Authentication required");
       }
 
       const summary = await scanRepository.getDashboardSummary(ownerId);

@@ -6,23 +6,7 @@ import { app } from "../src/app.js";
 import { Scan } from "../src/models/scan.js";
 import { scanRepository } from "../src/repositories/scanRepository.js";
 import { HistoryPage } from "@threatory/contracts";
-
-function extractCookie(res: request.Response): string[] {
-  const raw = res.headers["set-cookie"];
-  if (!raw) {
-    throw new Error("Missing set-cookie header");
-  }
-  return Array.isArray(raw) ? raw : [raw];
-}
-
-function extractOwnerId(cookies: string[]): string {
-  const cookieStr = cookies[0] || "";
-  const match = cookieStr.match(/tid=s%3A([^.;]+)/);
-  if (!match || !match[1]) {
-    throw new Error("Unable to extract ownerId from cookie");
-  }
-  return decodeURIComponent(match[1]);
-}
+import { createAuthenticatedSession } from "./test-auth-helper.js";
 
 describe("GET /api/scans (History Endpoint - CP-11 Task 1)", () => {
   let mongod: MongoMemoryServer;
@@ -47,9 +31,9 @@ describe("GET /api/scans (History Endpoint - CP-11 Task 1)", () => {
   });
 
   it("lists scans newest first with owner-scoping and contract conformance", async () => {
-    const resA = await request(app).get("/api/health");
-    const cookieA = extractCookie(resA);
-    const ownerA = extractOwnerId(cookieA);
+    const sessionA = await createAuthenticatedSession(app, "hist-owner-1@example.com");
+    const cookieA = sessionA.cookie;
+    const ownerA = sessionA.userId;
 
     const baseDate = new Date("2026-11-10T10:00:00.000Z");
     const scan1 = await scanRepository.create({
@@ -115,9 +99,9 @@ describe("GET /api/scans (History Endpoint - CP-11 Task 1)", () => {
   });
 
   it("filters correctly by module and by status", async () => {
-    const resA = await request(app).get("/api/health");
-    const cookieA = extractCookie(resA);
-    const ownerA = extractOwnerId(cookieA);
+    const sessionA = await createAuthenticatedSession(app, "hist-owner-2@example.com");
+    const cookieA = sessionA.cookie;
+    const ownerA = sessionA.userId;
 
     await scanRepository.create({
       scanId: "scan-f-url",
@@ -169,9 +153,9 @@ describe("GET /api/scans (History Endpoint - CP-11 Task 1)", () => {
   });
 
   it("filters correctly by from and to dates", async () => {
-    const resA = await request(app).get("/api/health");
-    const cookieA = extractCookie(resA);
-    const ownerA = extractOwnerId(cookieA);
+    const sessionA = await createAuthenticatedSession(app, "hist-owner-3@example.com");
+    const cookieA = sessionA.cookie;
+    const ownerA = sessionA.userId;
 
     await scanRepository.create({
       scanId: "scan-d1",
@@ -230,9 +214,9 @@ describe("GET /api/scans (History Endpoint - CP-11 Task 1)", () => {
   });
 
   it("handles pagination with page and limit", async () => {
-    const resA = await request(app).get("/api/health");
-    const cookieA = extractCookie(resA);
-    const ownerA = extractOwnerId(cookieA);
+    const sessionA = await createAuthenticatedSession(app, "hist-owner-4@example.com");
+    const cookieA = sessionA.cookie;
+    const ownerA = sessionA.userId;
 
     for (let i = 1; i <= 5; i++) {
       await scanRepository.create({
@@ -275,8 +259,8 @@ describe("GET /api/scans (History Endpoint - CP-11 Task 1)", () => {
   });
 
   it("enforces max limit of 50 and rejects limit > 50 with 400 VALIDATION_ERROR", async () => {
-    const resA = await request(app).get("/api/health");
-    const cookieA = extractCookie(resA);
+    const sessionA = await createAuthenticatedSession(app, "hist-owner-limit@example.com");
+    const cookieA = sessionA.cookie;
 
     // limit=51 should fail
     const resOver = await request(app)
@@ -296,8 +280,8 @@ describe("GET /api/scans (History Endpoint - CP-11 Task 1)", () => {
   });
 
   it("rejects invalid input query parameters with 400 VALIDATION_ERROR", async () => {
-    const resA = await request(app).get("/api/health");
-    const cookieA = extractCookie(resA);
+    const sessionA = await createAuthenticatedSession(app, "hist-owner-invalid@example.com");
+    const cookieA = sessionA.cookie;
 
     const testCases = [
       { query: "limit=0", field: "limit" },
@@ -324,13 +308,13 @@ describe("GET /api/scans (History Endpoint - CP-11 Task 1)", () => {
   });
 
   it("strictly isolates scans between two owners (owner B never sees owner A's data)", async () => {
-    const resA = await request(app).get("/api/health");
-    const cookieA = extractCookie(resA);
-    const ownerA = extractOwnerId(cookieA);
+    const sessionA = await createAuthenticatedSession(app, "hist-owner-5a@example.com");
+    const cookieA = sessionA.cookie;
+    const ownerA = sessionA.userId;
 
-    const resB = await request(app).get("/api/health");
-    const cookieB = extractCookie(resB);
-    const ownerB = extractOwnerId(cookieB);
+    const sessionB = await createAuthenticatedSession(app, "hist-owner-5b@example.com");
+    const cookieB = sessionB.cookie;
+    const ownerB = sessionB.userId;
 
     expect(ownerA).not.toBe(ownerB);
 

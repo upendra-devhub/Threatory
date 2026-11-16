@@ -6,23 +6,7 @@ import { app } from "../src/app.js";
 import { Scan } from "../src/models/scan.js";
 import { scanRepository } from "../src/repositories/scanRepository.js";
 import { DashboardSummary } from "@threatory/contracts";
-
-function extractCookie(res: request.Response): string[] {
-  const raw = res.headers["set-cookie"];
-  if (!raw) {
-    throw new Error("Missing set-cookie header");
-  }
-  return Array.isArray(raw) ? raw : [raw];
-}
-
-function extractOwnerId(cookies: string[]): string {
-  const cookieStr = cookies[0] || "";
-  const match = cookieStr.match(/tid=s%3A([^.;]+)/);
-  if (!match || !match[1]) {
-    throw new Error("Unable to extract ownerId from cookie");
-  }
-  return decodeURIComponent(match[1]);
-}
+import { createAuthenticatedSession } from "./test-auth-helper.js";
 
 describe("GET /api/dashboard/summary (Dashboard Summary Endpoint - CP-11 Task 2)", () => {
   let mongod: MongoMemoryServer;
@@ -47,12 +31,11 @@ describe("GET /api/dashboard/summary (Dashboard Summary Endpoint - CP-11 Task 2)
   });
 
   it("returns zero counts and empty recent scans for a fresh owner without scans", async () => {
-    const resA = await request(app).get("/api/health");
-    const cookieA = extractCookie(resA);
+    const sessionA = await createAuthenticatedSession(app, "dash-owner-a@example.com");
 
     const res = await request(app)
       .get("/api/dashboard/summary")
-      .set("Cookie", cookieA);
+      .set("Cookie", sessionA.cookie);
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -74,9 +57,9 @@ describe("GET /api/dashboard/summary (Dashboard Summary Endpoint - CP-11 Task 2)
   });
 
   it("calculates exact totals, module breakdown, risk distribution, and 5 recent scans from seeded dataset", async () => {
-    const resA = await request(app).get("/api/health");
-    const cookieA = extractCookie(resA);
-    const ownerA = extractOwnerId(cookieA);
+    const sessionA = await createAuthenticatedSession(app, "dash-seeded-a@example.com");
+    const cookieA = sessionA.cookie;
+    const ownerA = sessionA.userId;
 
     const baseTime = 1700000000000;
 
@@ -145,13 +128,13 @@ describe("GET /api/dashboard/summary (Dashboard Summary Endpoint - CP-11 Task 2)
   });
 
   it("strictly isolates dashboard data between two owners (other owner's data never appears)", async () => {
-    const resA = await request(app).get("/api/health");
-    const cookieA = extractCookie(resA);
-    const ownerA = extractOwnerId(cookieA);
+    const sessionA = await createAuthenticatedSession(app, "dash-iso-a@example.com");
+    const cookieA = sessionA.cookie;
+    const ownerA = sessionA.userId;
 
-    const resB = await request(app).get("/api/health");
-    const cookieB = extractCookie(resB);
-    const ownerB = extractOwnerId(cookieB);
+    const sessionB = await createAuthenticatedSession(app, "dash-iso-b@example.com");
+    const cookieB = sessionB.cookie;
+    const ownerB = sessionB.userId;
 
     expect(ownerA).not.toBe(ownerB);
 
@@ -216,9 +199,9 @@ describe("GET /api/dashboard/summary (Dashboard Summary Endpoint - CP-11 Task 2)
   });
 
   it("reflects report deletion immediately in dashboard totals and recent scans", async () => {
-    const resA = await request(app).get("/api/health");
-    const cookieA = extractCookie(resA);
-    const ownerA = extractOwnerId(cookieA);
+    const sessionA = await createAuthenticatedSession(app, "dash-del-a@example.com");
+    const cookieA = sessionA.cookie;
+    const ownerA = sessionA.userId;
 
     await scanRepository.create({
       scanId: "scan-to-delete",

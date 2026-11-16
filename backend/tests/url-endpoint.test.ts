@@ -7,9 +7,11 @@ import { app } from "../src/app.js";
 import { Scan } from "../src/models/scan.js";
 import { FeedEntry } from "../src/models/feedEntry.js";
 import { FeedSyncMeta } from "../src/models/feedSyncMeta.js";
+import { createAuthenticatedSession } from "./test-auth-helper.js";
 
 describe("POST /api/scans/url Endpoint", () => {
   let mongod: MongoMemoryServer;
+  let authCookie = "";
 
   beforeAll(async () => {
     mongod = await MongoMemoryServer.create();
@@ -27,6 +29,8 @@ describe("POST /api/scans/url Endpoint", () => {
     await Scan.deleteMany({});
     await FeedEntry.deleteMany({});
     await FeedSyncMeta.deleteMany({});
+    const session = await createAuthenticatedSession(app);
+    authCookie = session.cookie;
   });
 
   it("analyses a valid URL, saves with 30-day expiresAt, and returns contract-valid report", async () => {
@@ -35,6 +39,7 @@ describe("POST /api/scans/url Endpoint", () => {
 
     const createRes = await client
       .post("/api/scans/url")
+      .set("Cookie", authCookie)
       .send({ url: inputUrl })
       .expect(201);
 
@@ -68,6 +73,7 @@ describe("POST /api/scans/url Endpoint", () => {
     // GET /api/scans/<scanId> returns the identical report for the owner client
     const getRes = await client
       .get(`/api/scans/${report.scanId}`)
+      .set("Cookie", authCookie)
       .expect(200);
 
     const fetchedReport = ApiSuccess(Report).parse(getRes.body).data;
@@ -80,11 +86,13 @@ describe("POST /api/scans/url Endpoint", () => {
 
     const res1 = await client
       .post("/api/scans/url")
+      .set("Cookie", authCookie)
       .send({ url })
       .expect(201);
 
     const res2 = await client
       .post("/api/scans/url")
+      .set("Cookie", authCookie)
       .send({ url })
       .expect(201);
 
@@ -119,6 +127,7 @@ describe("POST /api/scans/url Endpoint", () => {
       const client = request.agent(app);
       const res = await client
         .post("/api/scans/url")
+        .set("Cookie", authCookie)
         .send({ url: "https://known-phishing-threat.net/login" })
         .expect(201);
 
@@ -153,6 +162,7 @@ describe("POST /api/scans/url Endpoint", () => {
       const client = request.agent(app);
       const res = await client
         .post("/api/scans/url")
+        .set("Cookie", authCookie)
         .send({ url: "https://example.com/" })
         .expect(201);
 
@@ -174,6 +184,7 @@ describe("POST /api/scans/url Endpoint", () => {
     it("returns 400 VALIDATION_ERROR with field path 'url' for empty url", async () => {
       const res = await request(app)
         .post("/api/scans/url")
+        .set("Cookie", authCookie)
         .send({ url: "   " })
         .expect(400);
 
@@ -189,6 +200,7 @@ describe("POST /api/scans/url Endpoint", () => {
     it("returns 400 VALIDATION_ERROR with field path 'url' for unsupported scheme (U4)", async () => {
       const res = await request(app)
         .post("/api/scans/url")
+        .set("Cookie", authCookie)
         .send({ url: "ftp://example.com" })
         .expect(400);
 
@@ -203,6 +215,7 @@ describe("POST /api/scans/url Endpoint", () => {
       const longUrl = "https://example.com/" + "a".repeat(2050);
       const res = await request(app)
         .post("/api/scans/url")
+        .set("Cookie", authCookie)
         .send({ url: longUrl })
         .expect(400);
 
@@ -218,6 +231,7 @@ describe("POST /api/scans/url Endpoint", () => {
     it("returns 400 VALIDATION_ERROR for malformed URLs", async () => {
       const res = await request(app)
         .post("/api/scans/url")
+        .set("Cookie", authCookie)
         .send({ url: "http://" })
         .expect(400);
 

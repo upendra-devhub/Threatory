@@ -5,9 +5,11 @@ import request from "supertest";
 import { ApiSuccess, Report } from "@threatory/contracts";
 import { app } from "../src/app.js";
 import { Scan } from "../src/models/scan.js";
+import { createAuthenticatedSession } from "./test-auth-helper.js";
 
 describe("POST /api/scans/privacy Endpoint", () => {
   let mongod: MongoMemoryServer;
+  let authCookie = "";
 
   beforeAll(async () => {
     mongod = await MongoMemoryServer.create();
@@ -23,6 +25,8 @@ describe("POST /api/scans/privacy Endpoint", () => {
 
   beforeEach(async () => {
     await Scan.deleteMany({});
+    const session = await createAuthenticatedSession(app);
+    authCookie = session.cookie;
   });
 
   it("P1: analyses valid privacy request, persists with 7-day expiresAt, and returns 200 with masked data", async () => {
@@ -45,6 +49,7 @@ describe("POST /api/scans/privacy Endpoint", () => {
 
     const res = await client
       .post("/api/scans/privacy")
+      .set("Cookie", authCookie)
       .send(p1Input)
       .expect(200);
 
@@ -100,6 +105,7 @@ describe("POST /api/scans/privacy Endpoint", () => {
 
     const res = await client
       .post("/api/scans/privacy")
+      .set("Cookie", authCookie)
       .send(p2Input)
       .expect(200);
 
@@ -127,6 +133,7 @@ describe("POST /api/scans/privacy Endpoint", () => {
 
     const res = await client
       .post("/api/scans/privacy")
+      .set("Cookie", authCookie)
       .send(p3Input)
       .expect(200);
 
@@ -168,6 +175,7 @@ describe("POST /api/scans/privacy Endpoint", () => {
 
     const res = await client
       .post("/api/scans/privacy")
+      .set("Cookie", authCookie)
       .send(p4Input)
       .expect(400);
 
@@ -188,6 +196,7 @@ describe("POST /api/scans/privacy Endpoint", () => {
     const client = request.agent(app);
     const res = await client
       .post("/api/scans/privacy")
+      .set("Cookie", authCookie)
       .send({
         profiles: [{ platform: "GitHub", username: "dev" }],
       })
@@ -206,6 +215,7 @@ describe("POST /api/scans/privacy Endpoint", () => {
     const client = request.agent(app);
     const res = await client
       .post("/api/scans/privacy")
+      .set("Cookie", authCookie)
       .send({
         profiles: [{ platform: "GitHub", username: "dev" }],
         submittedText: "a".repeat(10001),
@@ -226,6 +236,7 @@ describe("POST /api/scans/privacy Endpoint", () => {
     const client = request.agent(app);
     const res = await client
       .post("/api/scans/privacy")
+      .set("Cookie", authCookie)
       .send({
         profiles: [
           {
@@ -248,42 +259,36 @@ describe("POST /api/scans/privacy Endpoint", () => {
   });
 
   it("enforces owner isolation: retrieved by same owner, inaccessible to different owner", async () => {
-    const originalDevOwner = process.env.DEV_OWNER_ID;
-    delete process.env.DEV_OWNER_ID;
+    const sessionOwner = await createAuthenticatedSession(app, "privacy-owner-a@example.com");
+    const sessionStranger = await createAuthenticatedSession(app, "privacy-owner-b@example.com");
 
-    try {
-      const ownerClient = request.agent(app);
-      const strangerClient = request.agent(app);
+    const createRes = await request(app)
+      .post("/api/scans/privacy")
+      .set("Cookie", sessionOwner.cookie)
+      .send({
+        profiles: [{ platform: "GitHub", username: "dev" }],
+        consent: true,
+      })
+      .expect(200);
 
-      const createRes = await ownerClient
-        .post("/api/scans/privacy")
-        .send({
-          profiles: [{ platform: "GitHub", username: "dev" }],
-          consent: true,
-        })
-        .expect(200);
+    const scanId = createRes.body.data.scanId;
 
-      const scanId = createRes.body.data.scanId;
+    // Owner can fetch their scan
+    const getRes = await request(app)
+      .get(`/api/scans/${scanId}`)
+      .set("Cookie", sessionOwner.cookie)
+      .expect(200);
 
-      // Owner can fetch their scan
-      const getRes = await ownerClient
-        .get(`/api/scans/${scanId}`)
-        .expect(200);
+    expect(getRes.body.success).toBe(true);
+    expect(getRes.body.data.scanId).toBe(scanId);
 
-      expect(getRes.body.success).toBe(true);
-      expect(getRes.body.data.scanId).toBe(scanId);
+    // Stranger cannot fetch owner's scan
+    const strangerRes = await request(app)
+      .get(`/api/scans/${scanId}`)
+      .set("Cookie", sessionStranger.cookie)
+      .expect(404);
 
-      // Stranger cannot fetch owner's scan
-      const strangerRes = await strangerClient
-        .get(`/api/scans/${scanId}`)
-        .expect(404);
-
-      expect(strangerRes.body.success).toBe(false);
-      expect(strangerRes.body.error.code).toBe("NOT_FOUND");
-    } finally {
-      if (originalDevOwner !== undefined) {
-        process.env.DEV_OWNER_ID = originalDevOwner;
-      }
-    }
+    expect(strangerRes.body.success).toBe(false);
+    expect(strangerRes.body.error.code).toBe("NOT_FOUND");
   });
 });

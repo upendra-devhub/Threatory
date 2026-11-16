@@ -46,9 +46,9 @@ scansRouter.post(
   "/url",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const ownerId = req.ownerId;
+      const ownerId = req.userId || req.ownerId;
       if (!ownerId) {
-        throw new AppError("INTERNAL", "Missing owner identification");
+        throw new AppError("UNAUTHORIZED", "Authentication required");
       }
 
       const body = validateWithZod(UrlScanRequest, req.body);
@@ -83,9 +83,9 @@ scansRouter.post(
   "/privacy",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const ownerId = req.ownerId;
+      const ownerId = req.userId || req.ownerId;
       if (!ownerId) {
-        throw new AppError("INTERNAL", "Missing owner identification");
+        throw new AppError("UNAUTHORIZED", "Authentication required");
       }
 
       const { report } = analysePrivacy(req.body);
@@ -119,9 +119,9 @@ scansRouter.post(
   "/website",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const ownerId = req.ownerId;
+      const ownerId = req.userId || req.ownerId;
       if (!ownerId) {
-        throw new AppError("INTERNAL", "Missing owner identification");
+        throw new AppError("UNAUTHORIZED", "Authentication required");
       }
 
       const body = validateWithZod(WebsiteScanRequest, req.body);
@@ -156,9 +156,9 @@ scansRouter.get(
   "/",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const ownerId = req.ownerId;
+      const ownerId = req.userId || req.ownerId;
       if (!ownerId) {
-        throw new AppError("INTERNAL", "Missing owner identification");
+        throw new AppError("UNAUTHORIZED", "Authentication required");
       }
 
       const cleanQuery: Record<string, unknown> = {};
@@ -197,10 +197,10 @@ scansRouter.get(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { scanId } = req.params;
-      const ownerId = req.ownerId;
+      const ownerId = req.userId || req.ownerId;
 
       if (!ownerId) {
-        throw new AppError("INTERNAL", "Missing owner identification");
+        throw new AppError("UNAUTHORIZED", "Authentication required");
       }
 
       if (!scanId) {
@@ -228,10 +228,10 @@ scansRouter.delete(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { scanId } = req.params;
-      const ownerId = req.ownerId;
+      const ownerId = req.userId || req.ownerId;
 
       if (!ownerId) {
-        throw new AppError("INTERNAL", "Missing owner identification");
+        throw new AppError("UNAUTHORIZED", "Authentication required");
       }
 
       if (!scanId) {

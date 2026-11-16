@@ -6,9 +6,11 @@ import { ApiSuccess, Report } from "@threatory/contracts";
 import { app } from "../src/app.js";
 import { Scan } from "../src/models/scan.js";
 import * as websiteService from "../src/modules/website/service.js";
+import { createAuthenticatedSession } from "./test-auth-helper.js";
 
 describe("POST /api/scans/website Endpoint (Task 9d)", () => {
   let mongod: MongoMemoryServer;
+  let authCookie = "";
 
   beforeAll(async () => {
     mongod = await MongoMemoryServer.create();
@@ -24,6 +26,8 @@ describe("POST /api/scans/website Endpoint (Task 9d)", () => {
 
   beforeEach(async () => {
     await Scan.deleteMany({});
+    const session = await createAuthenticatedSession(app);
+    authCookie = session.cookie;
   });
 
   describe("Golden Inputs W1 and W2 Validation and SSRF Enforcement", () => {
@@ -40,6 +44,7 @@ describe("POST /api/scans/website Endpoint (Task 9d)", () => {
       for (const variant of w1Variants) {
         const res = await client
           .post("/api/scans/website")
+          .set("Cookie", authCookie)
           .send({ url: variant, authorised: true })
           .expect(422);
 
@@ -59,6 +64,7 @@ describe("POST /api/scans/website Endpoint (Task 9d)", () => {
       // file scheme
       const resFile = await client
         .post("/api/scans/website")
+        .set("Cookie", authCookie)
         .send({ url: "file:///etc/passwd", authorised: true })
         .expect(400);
 
@@ -68,6 +74,7 @@ describe("POST /api/scans/website Endpoint (Task 9d)", () => {
       // authorised: false
       const resUnauthorised = await client
         .post("/api/scans/website")
+        .set("Cookie", authCookie)
         .send({ url: "https://example.com", authorised: false })
         .expect(400);
 
@@ -77,6 +84,7 @@ describe("POST /api/scans/website Endpoint (Task 9d)", () => {
       // missing authorised property
       const resMissingAuth = await client
         .post("/api/scans/website")
+        .set("Cookie", authCookie)
         .send({ url: "https://example.com" })
         .expect(400);
 
@@ -158,6 +166,7 @@ describe("POST /api/scans/website Endpoint (Task 9d)", () => {
       try {
         const res = await client
           .post("/api/scans/website")
+          .set("Cookie", authCookie)
           .send({ url: "https://degraded-site.example.org", authorised: true })
           .expect(200);
 
@@ -242,6 +251,7 @@ describe("POST /api/scans/website Endpoint (Task 9d)", () => {
       try {
         const res = await client
           .post("/api/scans/website")
+          .set("Cookie", authCookie)
           .send({ url: "https://example.com", authorised: true })
           .expect(200);
 
@@ -267,7 +277,10 @@ describe("POST /api/scans/website Endpoint (Task 9d)", () => {
         expect(docString).not.toContain("body");
 
         // Isolation: Owner can read via GET /api/scans/:scanId
-        const readRes = await client.get(`/api/scans/${report.scanId}`).expect(200);
+        const readRes = await client
+          .get(`/api/scans/${report.scanId}`)
+          .set("Cookie", authCookie)
+          .expect(200);
         expect(readRes.body.data.scanId).toBe(report.scanId);
 
         // Another owner cannot read this scan (repository level isolation)

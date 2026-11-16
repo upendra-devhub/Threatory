@@ -6,8 +6,14 @@ import { getEnv } from "./config/env.js";
 import { httpLogger } from "./middleware/logger.js";
 import { generalLimiter, scanLimiter } from "./middleware/rateLimit.js";
 import { notFoundHandler, errorHandler } from "./middleware/errors.js";
-import { ownerMiddleware } from "./middleware/owner.js";
+import {
+  sessionMiddleware,
+  requireAuth,
+  validateOrigin,
+  enforceJsonBody,
+} from "./middleware/auth.js";
 import { healthRouter } from "./routes/health.js";
+import { authRouter } from "./routes/auth.js";
 import { scansRouter } from "./routes/scans.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 
@@ -54,19 +60,26 @@ export function createApp(): Express {
   app.use(generalLimiter);
   app.use("/api/scans", scanLimiter);
 
+  // State-changing origin validation
+  app.use(validateOrigin);
+
   // JSON body limit 20 kb
   app.use(express.json({ limit: "20kb" }));
+
+  // Enforce JSON content type on state-changing requests with body
+  app.use(enforceJsonBody);
 
   // Cookie parser with secret
   app.use(cookieParser(env.COOKIE_SECRET));
 
-  // Anonymous owner identification middleware
-  app.use(ownerMiddleware);
+  // Session identification middleware (populates req.user, req.userId, req.ownerId)
+  app.use(sessionMiddleware);
 
   // Routes
   app.use("/api/health", healthRouter);
-  app.use("/api/scans", scansRouter);
-  app.use("/api/dashboard", dashboardRouter);
+  app.use("/api/auth", authRouter);
+  app.use("/api/scans", requireAuth, scansRouter);
+  app.use("/api/dashboard", requireAuth, dashboardRouter);
 
   // 404 handler for unknown routes
   app.use(notFoundHandler);

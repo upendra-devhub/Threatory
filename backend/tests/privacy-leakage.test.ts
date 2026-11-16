@@ -10,6 +10,7 @@ import { app } from "../src/app.js";
 import { Scan } from "../src/models/scan.js";
 import { logger } from "../src/middleware/logger.js";
 import { analysePrivacy } from "../src/modules/privacy/service.js";
+import { createAuthenticatedSession } from "./test-auth-helper.js";
 
 const require = createRequire(import.meta.url);
 const rawGoldenInputs = require("@threatory/contracts/golden-inputs.json") as Array<{
@@ -21,6 +22,7 @@ const rawGoldenInputs = require("@threatory/contracts/golden-inputs.json") as Ar
 
 describe("Privacy Analyzer Security, Leakage Prevention and Regression", () => {
   let mongod: MongoMemoryServer;
+  let authCookie = "";
 
   beforeAll(async () => {
     mongod = await MongoMemoryServer.create();
@@ -36,6 +38,8 @@ describe("Privacy Analyzer Security, Leakage Prevention and Regression", () => {
 
   beforeEach(async () => {
     await Scan.deleteMany({});
+    const session = await createAuthenticatedSession(app);
+    authCookie = session.cookie;
   });
 
   describe("Golden Inputs P1 to P4 from golden-inputs.json", () => {
@@ -48,6 +52,7 @@ describe("Privacy Analyzer Security, Leakage Prevention and Regression", () => {
       const client = request.agent(app);
       const res = await client
         .post("/api/scans/privacy")
+        .set("Cookie", authCookie)
         .send(p1Fixture.input)
         .expect(200);
 
@@ -66,6 +71,7 @@ describe("Privacy Analyzer Security, Leakage Prevention and Regression", () => {
       const client = request.agent(app);
       const res = await client
         .post("/api/scans/privacy")
+        .set("Cookie", authCookie)
         .send(p2Fixture.input)
         .expect(200);
 
@@ -80,6 +86,7 @@ describe("Privacy Analyzer Security, Leakage Prevention and Regression", () => {
       const client = request.agent(app);
       const res = await client
         .post("/api/scans/privacy")
+        .set("Cookie", authCookie)
         .send(p3Fixture.input)
         .expect(200);
 
@@ -100,6 +107,7 @@ describe("Privacy Analyzer Security, Leakage Prevention and Regression", () => {
       const client = request.agent(app);
       const res = await client
         .post("/api/scans/privacy")
+        .set("Cookie", authCookie)
         .send(p4Fixture.input)
         .expect(400);
 
@@ -146,6 +154,7 @@ describe("Privacy Analyzer Security, Leakage Prevention and Regression", () => {
         const client = request.agent(app);
         res = await client
           .post("/api/scans/privacy")
+          .set("Cookie", authCookie)
           .send({
             profiles: [
               {
@@ -236,6 +245,7 @@ describe("Privacy Analyzer Security, Leakage Prevention and Regression", () => {
       try {
         const res = await client
           .post("/api/scans/privacy")
+          .set("Cookie", authCookie)
           .send({
             profiles: [
               {
