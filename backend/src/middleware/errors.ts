@@ -118,6 +118,7 @@ export function errorHandler(
     }
   }
 
+  console.error("Unhandled error in errorHandler:", err);
   res.status(500).json({
     success: false,
     error: {
