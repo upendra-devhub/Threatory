@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SavedReportView } from "@/components/reports/SavedReportView";
+import { ProtectedRoute } from "@/features/auth";
 
 export const metadata: Metadata = {
   title: "Report Details",
@@ -24,5 +25,9 @@ function decodeScanId(rawScanId: string): string {
 export default async function ReportPage({ params }: ReportPageProps) {
   const { scanId } = await params;
 
-  return <SavedReportView scanId={decodeScanId(scanId)} />;
+  return (
+    <ProtectedRoute>
+      <SavedReportView scanId={decodeScanId(scanId)} />
+    </ProtectedRoute>
+  );
 }

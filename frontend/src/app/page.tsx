@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { DashboardView } from "@/features/dashboard";
+import { LandingPageView } from "@/features/landing/LandingPageView";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "Overview of your security scans, risk distributions, and recent assessments.",
+  title: "Threatory — See what a link, a profile or a website is really exposing",
+  description:
+    "Threatory runs security checks and explains the evidence behind every result in plain language.",
 };
 
 export default function HomePage() {
-  return <DashboardView />;
+  return <LandingPageView />;
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PrivacyAnalyzerView } from "@/features/privacy/components/PrivacyAnalyzerView";
+import { ProtectedRoute } from "@/features/auth";
 
 export const metadata: Metadata = {
   title: "Privacy Exposure Analyzer",
@@ -7,5 +8,10 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyAnalyzerPage() {
-  return <PrivacyAnalyzerView />;
+  return (
+    <ProtectedRoute>
+      <PrivacyAnalyzerView />
+    </ProtectedRoute>
+  );
 }
+
