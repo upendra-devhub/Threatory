@@ -92,23 +92,15 @@ describe("Dashboard View & Components (CP-11 Task 5)", () => {
 
     const { container } = renderWithQuery(<DashboardView />);
 
-    expect(await screen.findByText("Welcome to Threatory")).toBeInTheDocument();
+    expect(await screen.findByText("Run your first scan")).toBeInTheDocument();
     expect(
-      screen.getByText(/You have not run any scans in this browser session/i)
+      screen.getByText(/Pick a tool to get started. Your reports are saved to your account./i)
     ).toBeInTheDocument();
 
-    expect(screen.getByRole("link", { name: /analyze a url/i })).toHaveAttribute(
-      "href",
-      "/url-analyzer"
-    );
-    expect(screen.getByRole("link", { name: /audit privacy/i })).toHaveAttribute(
-      "href",
-      "/privacy-analyzer"
-    );
-    expect(screen.getByRole("link", { name: /audit website/i })).toHaveAttribute(
-      "href",
-      "/website-auditor"
-    );
+    const links = screen.getAllByRole("link", { name: /start/i });
+    expect(links.some((l) => l.getAttribute("href") === "/url-analyzer")).toBe(true);
+    expect(links.some((l) => l.getAttribute("href") === "/privacy-analyzer")).toBe(true);
+    expect(links.some((l) => l.getAttribute("href") === "/website-auditor")).toBe(true);
 
     await expectNoAxeViolations(container);
   });

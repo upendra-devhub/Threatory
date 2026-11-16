@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { HistoryView } from "@/features/history";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ProtectedRoute } from "@/features/auth";
 
 export const metadata: Metadata = {
   title: "Scan History",
@@ -23,8 +24,10 @@ function HistoryFallback() {
 
 export default function HistoryPage() {
   return (
-    <Suspense fallback={<HistoryFallback />}>
-      <HistoryView />
-    </Suspense>
+    <ProtectedRoute>
+      <Suspense fallback={<HistoryFallback />}>
+        <HistoryView />
+      </Suspense>
+    </ProtectedRoute>
   );
 }

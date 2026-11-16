@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { URLAnalyzerView, DEFAULT_URL_DEMO_REPORT } from "@/features/url";
+import { URLAnalyzerView } from "@/features/url";
+import { ProtectedRoute } from "@/features/auth";
 
 export const metadata: Metadata = {
   title: "URL Analyzer",
@@ -7,5 +8,10 @@ export const metadata: Metadata = {
 };
 
 export default function UrlAnalyzerPage() {
-  return <URLAnalyzerView initialReport={DEFAULT_URL_DEMO_REPORT} />;
+  return (
+    <ProtectedRoute>
+      <URLAnalyzerView />
+    </ProtectedRoute>
+  );
 }
+

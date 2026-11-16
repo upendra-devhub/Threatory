@@ -12,6 +12,9 @@ const __dirname = path.dirname(__filename);
 
 export async function runSeed(customOwnerId?: string): Promise<string[]> {
   const env = getEnv();
+  if (env.NODE_ENV === "production" || process.env.NODE_ENV === "production") {
+    throw new Error("Seeding is strictly prohibited in production mode (NODE_ENV=production)");
+  }
   const ownerId = customOwnerId || env.DEV_OWNER_ID || "dev-owner-local-test";
 
   // Clear existing seeded scans for this ownerId

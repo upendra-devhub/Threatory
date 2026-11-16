@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { WebsiteAuditorView, DEFAULT_WEBSITE_DEMO_REPORT } from "@/features/website";
+import { WebsiteAuditorView } from "@/features/website";
+import { ProtectedRoute } from "@/features/auth";
 
 export const metadata: Metadata = {
   title: "Website Security Auditor",
@@ -8,10 +9,9 @@ export const metadata: Metadata = {
 
 export default function WebsiteAuditorPage() {
   return (
-    <WebsiteAuditorView
-      initialUrl="https://example.com"
-      initialAuthorised={true}
-      initialReport={DEFAULT_WEBSITE_DEMO_REPORT}
-    />
+    <ProtectedRoute>
+      <WebsiteAuditorView />
+    </ProtectedRoute>
   );
 }
+

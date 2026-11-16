@@ -52,5 +52,9 @@ export interface ApiStatusIndicatorProps {
 
 export function ApiStatusIndicator({ className }: ApiStatusIndicatorProps) {
   const { state } = useApiHealth();
+  // In production, hide the operational indicator and only show when genuinely unavailable
+  if (process.env.NODE_ENV === "production" && state !== "unavailable") {
+    return null;
+  }
   return <ApiStatusBadge state={state} className={className} />;
 }

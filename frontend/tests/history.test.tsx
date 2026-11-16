@@ -163,20 +163,12 @@ describe("History View and Components (CP-11 Task 3)", () => {
 
     expect(await screen.findByText("No scans yet")).toBeInTheDocument();
     expect(
-      screen.getByText(/You have not run any scans in this browser session/i)
+      screen.getByText(/You have not run any scans yet/i)
     ).toBeInTheDocument();
 
-    expect(screen.getByRole("link", { name: /url analyzer/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /run a scan/i })).toHaveAttribute(
       "href",
       "/url-analyzer"
-    );
-    expect(screen.getByRole("link", { name: /privacy analyzer/i })).toHaveAttribute(
-      "href",
-      "/privacy-analyzer"
-    );
-    expect(screen.getByRole("link", { name: /website auditor/i })).toHaveAttribute(
-      "href",
-      "/website-auditor"
     );
 
     await expectNoAxeViolations(container);

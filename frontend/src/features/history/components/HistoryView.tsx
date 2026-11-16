@@ -101,10 +101,10 @@ export function HistoryView() {
       {/* Page Header */}
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-          Scan History
+          Scan history
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 max-w-3xl leading-relaxed">
-          Every saved report from this browser. Targets are shown as plain text and are never opened as links.
+          Every report saved to your account. Reports expire automatically and can be deleted at any time.
         </p>
       </div>
 
@@ -147,17 +147,11 @@ export function HistoryView() {
           <EmptyState
             icon={HistoryIcon}
             title="No scans yet"
-            description="You have not run any scans in this browser session. Start analyzing a URL, privacy footprint, or website below."
+            description="You have not run any scans yet. Run your first security check to see your saved reports here."
           >
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <Button asChild size="sm" variant="outline">
-                <Link href="/url-analyzer">URL Analyzer</Link>
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <Link href="/privacy-analyzer">Privacy Analyzer</Link>
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <Link href="/website-auditor">Website Auditor</Link>
+            <div className="pt-2">
+              <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl">
+                <Link href="/url-analyzer">Run a scan</Link>
               </Button>
             </div>
           </EmptyState>
