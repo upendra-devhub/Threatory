@@ -12,7 +12,10 @@ export const envSchema = z
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     PORT: z.coerce.number().int().positive().default(4000),
     MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
-    FRONTEND_ORIGIN: z.string().min(1, "FRONTEND_ORIGIN is required"),
+    FRONTEND_ORIGIN: z
+      .string()
+      .min(1, "FRONTEND_ORIGIN is required")
+      .transform((val) => val.trim().replace(/\/+$/, "")),
     COOKIE_SECRET: z.string().min(1, "COOKIE_SECRET is required"),
     DEV_OWNER_ID: z.string().optional(),
     TRUST_PROXY: z.string().optional(),
