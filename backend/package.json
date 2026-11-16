@@ -16,6 +16,7 @@
     "eval:url": "tsx src/scripts/eval-url.ts"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.2.2",
     "@threatory/contracts": "*",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

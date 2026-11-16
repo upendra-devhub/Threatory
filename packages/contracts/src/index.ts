@@ -69,12 +69,39 @@ export const ApiError = z.object({
       "RATE_LIMITED",
       "INTERNAL",
       "UPSTREAM_FAILURE",
+      "UNAUTHORIZED",
+      "CONFLICT",
     ]),
     message: z.string(),
     fields: z.array(z.object({ path: z.string(), message: z.string() })).optional(),
   }),
 });
 export type ApiError = z.infer<typeof ApiError>;
+
+export const UserSafe = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  createdAt: z.string().datetime(),
+  lastLoginAt: z.string().datetime().optional().nullable(),
+});
+export type UserSafe = z.infer<typeof UserSafe>;
+
+export const SignUpRequest = z.object({
+  email: z.string().trim().email("Please enter a valid email address").max(255),
+  password: z.string().min(10, "Password must be at least 10 characters").max(128),
+});
+export type SignUpRequest = z.infer<typeof SignUpRequest>;
+
+export const SignInRequest = z.object({
+  email: z.string().trim().email("Please enter a valid email address").max(255),
+  password: z.string().min(1, "Password is required").max(128),
+});
+export type SignInRequest = z.infer<typeof SignInRequest>;
+
+export const AuthResponse = z.object({
+  user: UserSafe,
+});
+export type AuthResponse = z.infer<typeof AuthResponse>;
 
 export const UrlScanRequest = z.object({
   url: z.string().trim().min(1).max(2048),

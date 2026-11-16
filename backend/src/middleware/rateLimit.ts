@@ -35,3 +35,23 @@ export const scanLimiter = rateLimit({
   handler: rateLimitHandler,
   skip: () => process.env.DISABLE_RATE_LIMIT === "true",
 });
+
+export const signUpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many account registration attempts, please try again later.",
+  handler: rateLimitHandler,
+  skip: () => process.env.DISABLE_RATE_LIMIT === "true",
+});
+
+export const signInLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many sign-in attempts, please try again later.",
+  handler: rateLimitHandler,
+  skip: () => process.env.DISABLE_RATE_LIMIT === "true",
+});

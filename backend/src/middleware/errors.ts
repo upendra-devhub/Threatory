@@ -3,7 +3,9 @@ import { ZodError, ZodType } from "zod";
 
 export type ApiErrorCode =
   | "VALIDATION_ERROR"
+  | "UNAUTHORIZED"
   | "NOT_FOUND"
+  | "CONFLICT"
   | "TARGET_BLOCKED"
   | "RATE_LIMITED"
   | "INTERNAL"
@@ -11,7 +13,9 @@ export type ApiErrorCode =
 
 export const HTTP_STATUS_MAP: Record<ApiErrorCode, number> = {
   VALIDATION_ERROR: 400,
+  UNAUTHORIZED: 401,
   NOT_FOUND: 404,
+  CONFLICT: 409,
   TARGET_BLOCKED: 422,
   RATE_LIMITED: 429,
   INTERNAL: 500,
